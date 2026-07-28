@@ -9,13 +9,17 @@ export function renderSidebar(container) {
   }
   
   let menuItems = [];
-  if (session.role === 'admin') {
+  if (session.role === 'admin' || session.role === 'super_admin') {
     menuItems = [
       { path: '#/dashboard', icon: '📊', text: '대시보드' },
       { path: '#/routes', icon: '🗺️', text: '노선 관리' },
       { path: '#/forwarders', icon: '🏢', text: '포워더 관리' },
       { path: '#/bidding', icon: '📋', text: '입찰 관리' }
     ];
+    
+    if (session.role === 'super_admin') {
+      menuItems.push({ path: '#/admins', icon: '👑', text: '팀원(관리자) 관리' });
+    }
   } else if (session.role === 'forwarder') {
     menuItems = [
       { path: '#/rate-entry', icon: '📝', text: '운임 입력' }

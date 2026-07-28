@@ -334,7 +334,7 @@ export function renderBiddingPage(container) {
 
       try {
         const emailPromises = forwardersWithEmail.map(f => 
-          fetch('http://localhost:3001/api/send-email', {
+          fetch('https://atomy-bidding-backend.onrender.com/api/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

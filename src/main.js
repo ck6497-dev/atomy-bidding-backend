@@ -8,6 +8,7 @@ import { renderRoutesPage } from './pages/RoutesPage.js';
 import { renderForwardersPage } from './pages/ForwardersPage.js';
 import { renderBiddingPage } from './pages/BiddingPage.js';
 import { renderRateEntryPage } from './pages/RateEntryPage.js';
+import { renderAdminsPage } from './pages/AdminsPage.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   if (!hasData()) {
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
   registerRoute('#/forwarders', withLayout(renderForwardersPage, 'admin'));
   registerRoute('#/bidding', withLayout(renderBiddingPage, 'admin'));
   registerRoute('#/rate-entry', withLayout(renderRateEntryPage, 'forwarder'));
+  registerRoute('#/admins', withLayout(renderAdminsPage, 'admin')); // Only super_admin can see it, but layout is admin level
 
   // Initial navigation
   const session = getSession();

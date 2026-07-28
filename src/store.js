@@ -1,5 +1,51 @@
 import { sampleRoutes, sampleForwarders, sampleBidding, sampleRates } from './utils/sampleData.js';
 
+const API_URL = 'http://localhost:3001/api'; // 로컬 테스트용, 추후 Render URL 적용
+
+export function setToken(token) {
+  localStorage.setItem('atomy_jwt', token);
+}
+
+export function getToken() {
+  return localStorage.getItem('atomy_jwt');
+}
+
+export async function loginApi(email, password) {
+  const res = await fetch(`${API_URL}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  return res.json();
+}
+
+export async function setPasswordApi(email, newPassword) {
+  const res = await fetch(`${API_URL}/set-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, newPassword })
+  });
+  return res.json();
+}
+
+export async function getAdminsApi() {
+  const res = await fetch(`${API_URL}/admins`, {
+    headers: { 'Authorization': `Bearer ${getToken()}` }
+  });
+  return res.json();
+}
+
+export async function addAdminApi(email) {
+  const res = await fetch(`${API_URL}/admins`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getToken()}`
+    },
+    body: JSON.stringify({ email })
+  });
+  return res.json();
+}
 export function generateId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -221,7 +267,7 @@ export function clearSession() {
 
 export function isAdmin() {
   const session = getSession();
-  return session?.role === 'admin';
+  return session?.role === 'admin' || session?.role === 'super_admin';
 }
 
 export function isForwarder() {
