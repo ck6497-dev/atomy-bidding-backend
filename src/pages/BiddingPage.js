@@ -1,37 +1,37 @@
-import { getBiddings, addBidding, updateBidding, getActiveBidding, getForwarders, getRoutes, getAllRates, revokeSubmission, reopenBidding, isForwarderSubmitted } from '../store.js';
+import { getBiddings, addBidding, updateBidding, getActiveBidding, getForwarders, getRoutes, getAllRates, revokeSubmission, reopenBidding, isForwarderSubmitted, getToken } from '../store.js';
 import { showModal, closeModal } from '../components/Modal.js';
 import { showToast } from '../components/Toast.js';
 import { formatDate } from '../utils/format.js';
 
-export function renderBiddingPage(container) {
-  function checkAutoClose() {
-    const biddings = getBiddings();
+export async function renderBiddingPage(container) {
+  async function checkAutoClose() {
+    const biddings = await getBiddings();
     const now = new Date();
-    biddings.forEach(b => {
+    for (const b of biddings) {
       if (b.status === 'active' && b.deadline) {
         const deadlineEnd = new Date(b.deadline);
         deadlineEnd.setHours(23, 59, 59, 999);
         if (now > deadlineEnd) {
-          updateBidding(b.id, { status: 'closed', closedAt: deadlineEnd.toISOString() });
+          await updateBidding(b.id, { status: 'closed', closedAt: deadlineEnd.toISOString() });
         }
       }
-    });
+    }
   }
 
-  function render() {
-    checkAutoClose();
+  async function render() {
+    await checkAutoClose();
     
-    const biddings = getBiddings();
-    const activeBidding = getActiveBidding();
+    const biddings = await getBiddings();
+    const activeBidding = await getActiveBidding();
     
-    biddings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Newest first
+    biddings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
     // Calculate progress for active bidding
     let progressHtml = '';
     if (activeBidding) {
-      const allForwarders = getForwarders();
-      const activeForwarders = allForwarders.filter(f => f.assignedRoutes && f.assignedRoutes.length > 0);
-      const submittedCount = activeForwarders.filter(f => (activeBidding.submittedForwarders || []).includes(f.id)).length;
+      const allForwarders = await getForwarders();
+      const activeForwarders = allForwarders.filter(f => f.assigned_routes && f.assigned_routes.length > 0);
+      const submittedCount = activeForwarders.filter(f => (activeBidding.submitted_forwarders || []).includes(f.id)).length;
       
       progressHtml = `
         <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border-color);">
@@ -45,7 +45,7 @@ export function renderBiddingPage(container) {
           
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem;">
             ${activeForwarders.map(f => {
-              const isSubmitted = (activeBidding.submittedForwarders || []).includes(f.id);
+              const isSubmitted = (activeBidding.submitted_forwarders || []).includes(f.id);
               return `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-primary); border-radius: 6px; border: 1px solid var(--border-color);">
                   <div>
@@ -85,7 +85,7 @@ export function renderBiddingPage(container) {
                 ${activeBidding.title}
                 <span class="badge badge-active" style="margin-left: 0.5rem;">진행중</span>
               </h3>
-              <p style="color: var(--text-secondary); margin: 0;">생성일: ${formatDate(activeBidding.createdAt)}</p>
+              <p style="color: var(--text-secondary); margin: 0;">생성일: ${formatDate(activeBidding.created_at)}</p>
               ${activeBidding.deadline ? `<p style="color: var(--warning); margin: 4px 0 0 0; font-weight: 500;">⏰ 마감시한: ${formatDate(activeBidding.deadline)} 23:59</p>` : ''}
             </div>
             <div>
@@ -123,9 +123,9 @@ export function renderBiddingPage(container) {
                 <tr ${b.status === 'active' ? 'style="background: var(--accent-glow);"' : ''}>
                   <td><strong style="color: var(--text-primary);">${b.title}</strong></td>
                   <td><span class="badge ${badgeClass}">${statusText}</span></td>
-                  <td><span style="color: var(--text-secondary);">${formatDate(b.createdAt)}</span></td>
+                  <td><span style="color: var(--text-secondary);">${formatDate(b.created_at)}</span></td>
                   <td><span style="color: var(--text-secondary);">${b.deadline ? formatDate(b.deadline) + ' 23:59' : '-'}</span></td>
-                  <td><span style="color: var(--text-secondary);">${b.closedAt ? formatDate(b.closedAt) : '-'}</span></td>
+                  <td><span style="color: var(--text-secondary);">${b.closed_at ? formatDate(b.closed_at) : '-'}</span></td>
                   <td>
                     ${b.status === 'preparing' ? `<button class="btn btn-sm btn-primary btn-start" data-id="${b.id}">시작하기</button>` : ''}
                     ${b.status === 'active' ? `<button class="btn btn-sm btn-danger btn-close" data-id="${b.id}">마감하기</button>` : ''}
@@ -148,25 +148,25 @@ export function renderBiddingPage(container) {
     }
 
     container.querySelectorAll('.btn-close, #btn-close-bidding').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         if (confirm('이 입찰을 마감하시겠습니까? 마감 후에는 포워더가 운임을 수정할 수 없습니다.')) {
-          updateBidding(id, { status: 'closed', closedAt: new Date().toISOString() });
+          await updateBidding(id, { status: 'closed', closedAt: new Date().toISOString() });
           showToast('입찰이 마감되었습니다.');
-          render();
+          await render();
         }
       });
     });
 
     // 최종제출 취하 버튼 이벤트
     container.querySelectorAll('.btn-revoke-submission').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const forwarderId = e.currentTarget.dataset.forwarderId;
         const forwarderName = e.currentTarget.dataset.forwarderName;
         if (confirm(`'${forwarderName}' 포워더의 최종제출을 취하하시겠습니까?\n취하 후에는 포워더가 다시 운임을 수정할 수 있습니다.`)) {
-          revokeSubmission(activeBidding.id, forwarderId);
+          await revokeSubmission(activeBidding.id, forwarderId);
           showToast(`'${forwarderName}' 최종제출이 취하되었습니다.`);
-          render();
+          await render();
         }
       });
     });
@@ -181,16 +181,16 @@ export function renderBiddingPage(container) {
     });
 
     container.querySelectorAll('.btn-start').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
-        const active = getActiveBidding();
+        const active = await getActiveBidding();
         if (active) {
           alert('이미 진행중인 입찰이 있습니다. 먼저 마감해주세요.');
           return;
         }
-        updateBidding(id, { status: 'active' });
+        await updateBidding(id, { status: 'active' });
         showToast('입찰이 시작되었습니다.');
-        render();
+        await render();
       });
     });
   }
@@ -243,11 +243,9 @@ export function renderBiddingPage(container) {
     const titleInput = document.getElementById('bid-title');
     const deadlineInput = document.getElementById('bid-deadline');
 
-    // 마감시한 기본값: 오늘로부터 7일 후
     const defaultDeadline = new Date();
     defaultDeadline.setDate(defaultDeadline.getDate() + 7);
     deadlineInput.value = defaultDeadline.toISOString().split('T')[0];
-    // 최소 날짜: 오늘
     deadlineInput.min = new Date().toISOString().split('T')[0];
 
     function updateTitle() {
@@ -260,36 +258,26 @@ export function renderBiddingPage(container) {
 
     document.getElementById('btn-cancel-bid').addEventListener('click', closeModal);
 
-    document.getElementById('bidding-form').addEventListener('submit', (e) => {
+    document.getElementById('bidding-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const selectedYear = parseInt(yearSelect.value);
       const selectedMonth = parseInt(monthSelect.value);
 
-      // 연/월 중복 검사
-      const existingBiddings = getBiddings();
-      const isDuplicate = existingBiddings.some(b => b.year === selectedYear && b.month === selectedMonth);
-      
-      if (isDuplicate) {
-        alert(`${selectedYear}년 ${selectedMonth}월 입찰 내역이 이미 존재합니다. 다른 연/월을 선택해주세요.`);
-        return;
-      }
-
       const newBiddingData = {
         title: titleInput.value,
         year: selectedYear,
         month: selectedMonth,
-        status: 'active', // start immediately
-        createdAt: new Date().toISOString(),
+        status: 'active',
         deadline: deadlineInput.value
       };
       
-      openEmailConfirmModal(newBiddingData);
+      await openEmailConfirmModal(newBiddingData);
     });
   }
 
-  function openEmailConfirmModal(biddingData) {
-    const forwarders = getForwarders();
+  async function openEmailConfirmModal(biddingData) {
+    const forwarders = await getForwarders();
     const forwardersWithEmail = forwarders.filter(f => f.email && f.email.trim() !== '');
     const emailListStr = forwardersWithEmail.map(f => `${f.name} (${f.email})`).join(', ');
 
@@ -320,11 +308,16 @@ export function renderBiddingPage(container) {
 
     document.getElementById('btn-cancel-create').addEventListener('click', closeModal);
 
-    document.getElementById('btn-create-only').addEventListener('click', () => {
-      addBidding(biddingData);
-      showToast('새 입찰이 시작되었습니다.');
+    document.getElementById('btn-create-only').addEventListener('click', async () => {
+      try {
+        const result = await addBidding(biddingData);
+        if (result.error) throw new Error(result.error);
+        showToast('새 입찰이 시작되었습니다.');
+      } catch (err) {
+        showToast('오류: ' + err.message, 'error');
+      }
       closeModal();
-      render();
+      await render();
     });
 
     document.getElementById('btn-send-and-create')?.addEventListener('click', async () => {
@@ -333,10 +326,14 @@ export function renderBiddingPage(container) {
       btn.innerText = '발송 중...';
 
       try {
+        const token = getToken();
         const emailPromises = forwardersWithEmail.map(f => 
           fetch('https://atomy-bidding-backend.onrender.com/api/send-email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({
               to: f.email,
               subject: `[Atomy] 신규 입찰 안내: ${biddingData.title}`,
@@ -354,30 +351,25 @@ export function renderBiddingPage(container) {
           })
         );
 
-        const responses = await Promise.all(emailPromises);
-        
-        // 에러 확인
-        const errors = responses.filter(r => !r.ok);
-        if (errors.length > 0) {
-          throw new Error('일부 메일 발송에 실패했습니다.');
-        }
+        await Promise.all(emailPromises);
 
-        addBidding(biddingData);
+        const result = await addBidding(biddingData);
+        if (result.error) throw new Error(result.error);
         showToast('메일이 성공적으로 발송되었으며, 새 입찰이 시작되었습니다.');
       } catch (error) {
         console.error('메일 발송 실패:', error);
         alert('메일 발송 과정에서 오류가 발생했습니다. (입찰은 생성됩니다)');
-        addBidding(biddingData);
+        await addBidding(biddingData);
         showToast('새 입찰이 시작되었습니다.');
       } finally {
         closeModal();
-        render();
+        await render();
       }
     });
   }
 
-  function openReopenModal(biddingId, biddingTitle) {
-    const active = getActiveBidding();
+  async function openReopenModal(biddingId, biddingTitle) {
+    const active = await getActiveBidding();
     if (active) {
       alert('현재 진행 중인 다른 입찰이 있습니다. 기존 진행 중인 입찰을 먼저 마감해주세요.');
       return;
@@ -412,15 +404,15 @@ export function renderBiddingPage(container) {
 
     document.getElementById('btn-cancel-reopen').addEventListener('click', closeModal);
 
-    document.getElementById('reopen-form').addEventListener('submit', (e) => {
+    document.getElementById('reopen-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const newDeadline = document.getElementById('reopen-deadline').value;
-      reopenBidding(biddingId, newDeadline);
+      await reopenBidding(biddingId, newDeadline);
       showToast('입찰이 마감 취소되고 다시 재개되었습니다.');
       closeModal();
-      render();
+      await render();
     });
   }
 
-  render();
+  await render();
 }

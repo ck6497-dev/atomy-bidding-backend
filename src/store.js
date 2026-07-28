@@ -1,7 +1,8 @@
 import { sampleRoutes, sampleForwarders, sampleBidding, sampleRates } from './utils/sampleData.js';
 
-const API_URL = 'http://localhost:3001/api'; // 로컬 테스트용, 추후 Render URL 적용
+const API_URL = 'http://localhost:3001/api'; // 로컬 테스트용
 
+// ─── JWT Token 관리 ──────────────────────────────────────────────────────────
 export function setToken(token) {
   localStorage.setItem('atomy_jwt', token);
 }
@@ -10,6 +11,27 @@ export function getToken() {
   return localStorage.getItem('atomy_jwt');
 }
 
+function authHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${getToken()}`
+  };
+}
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: { ...authHeaders(), ...options.headers }
+  });
+  if (res.status === 401 || res.status === 403) {
+    clearSession();
+    window.location.hash = '#/login';
+    throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
+  }
+  return res.json();
+}
+
+// ─── Auth API ────────────────────────────────────────────────────────────────
 export async function loginApi(email, password) {
   const res = await fetch(`${API_URL}/login`, {
     method: 'POST',
@@ -28,24 +50,19 @@ export async function setPasswordApi(email, newPassword) {
   return res.json();
 }
 
+// ─── Admin API ───────────────────────────────────────────────────────────────
 export async function getAdminsApi() {
-  const res = await fetch(`${API_URL}/admins`, {
-    headers: { 'Authorization': `Bearer ${getToken()}` }
-  });
-  return res.json();
+  return apiFetch('/admins');
 }
 
 export async function addAdminApi(email) {
-  const res = await fetch(`${API_URL}/admins`, {
+  return apiFetch('/admins', {
     method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${getToken()}`
-    },
     body: JSON.stringify({ email })
   });
-  return res.json();
 }
+
+// ─── ID 생성 유틸 ────────────────────────────────────────────────────────────
 export function generateId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -53,146 +70,106 @@ export function generateId() {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
-export function getData(key) {
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : null;
+// ─── Routes API ──────────────────────────────────────────────────────────────
+export async function getRoutes() {
+  return apiFetch('/routes');
 }
 
-export function setData(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+export async function addRoute(route) {
+  return apiFetch('/routes', {
+    method: 'POST',
+    body: JSON.stringify(route)
+  });
 }
 
-// Routes CRUD
-export function getRoutes() {
-  return getData('atomy_routes') || [];
+export async function updateRoute(id, updates) {
+  return apiFetch(`/routes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  });
 }
 
-export function saveRoutes(routes) {
-  setData('atomy_routes', routes);
+export async function deleteRoute(id) {
+  return apiFetch(`/routes/${id}`, { method: 'DELETE' });
 }
 
-export function addRoute(route) {
-  const routes = getRoutes();
-  const newRoute = { ...route, id: generateId() };
-  routes.push(newRoute);
-  saveRoutes(routes);
-  return newRoute;
+export async function bulkAddRoutes(routes) {
+  return apiFetch('/routes/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ routes })
+  });
 }
 
-export function updateRoute(id, updates) {
-  const routes = getRoutes();
-  const index = routes.findIndex(r => r.id === id);
-  if (index !== -1) {
-    routes[index] = { ...routes[index], ...updates };
-    saveRoutes(routes);
-    return routes[index];
-  }
-  return null;
+// ─── Forwarders API ──────────────────────────────────────────────────────────
+export async function getForwarders() {
+  return apiFetch('/forwarders');
 }
 
-export function deleteRoute(id) {
-  const routes = getRoutes();
-  saveRoutes(routes.filter(r => r.id !== id));
+export async function addForwarder(forwarder) {
+  return apiFetch('/forwarders', {
+    method: 'POST',
+    body: JSON.stringify(forwarder)
+  });
 }
 
-// Forwarders CRUD  
-export function getForwarders() {
-  return getData('atomy_forwarders') || [];
+export async function updateForwarder(id, updates) {
+  return apiFetch(`/forwarders/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  });
 }
 
-export function saveForwarders(forwarders) {
-  setData('atomy_forwarders', forwarders);
+export async function deleteForwarder(id) {
+  return apiFetch(`/forwarders/${id}`, { method: 'DELETE' });
 }
 
-export function addForwarder(forwarder) {
-  const forwarders = getForwarders();
-  const newForwarder = { ...forwarder, id: generateId() };
-  forwarders.push(newForwarder);
-  saveForwarders(forwarders);
-  return newForwarder;
+// ─── Biddings API ────────────────────────────────────────────────────────────
+export async function getBiddings() {
+  return apiFetch('/biddings');
 }
 
-export function updateForwarder(id, updates) {
-  const forwarders = getForwarders();
-  const index = forwarders.findIndex(f => f.id === id);
-  if (index !== -1) {
-    forwarders[index] = { ...forwarders[index], ...updates };
-    saveForwarders(forwarders);
-    return forwarders[index];
-  }
-  return null;
+export async function addBidding(bidding) {
+  return apiFetch('/biddings', {
+    method: 'POST',
+    body: JSON.stringify(bidding)
+  });
 }
 
-export function deleteForwarder(id) {
-  const forwarders = getForwarders();
-  saveForwarders(forwarders.filter(f => f.id !== id));
+export async function updateBidding(id, updates) {
+  return apiFetch(`/biddings/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  });
 }
 
-// Biddings CRUD
-export function getBiddings() {
-  return getData('atomy_biddings') || [];
-}
-
-export function addBidding(bidding) {
-  const biddings = getBiddings();
-  const newBidding = { ...bidding, id: generateId() };
-  biddings.push(newBidding);
-  setData('atomy_biddings', biddings);
-  return newBidding;
-}
-
-export function updateBidding(id, updates) {
-  const biddings = getBiddings();
-  const index = biddings.findIndex(b => b.id === id);
-  if (index !== -1) {
-    biddings[index] = { ...biddings[index], ...updates };
-    setData('atomy_biddings', biddings);
-    return biddings[index];
-  }
-  return null;
-}
-
-export function getActiveBidding() {
-  const biddings = getBiddings();
+export async function getActiveBidding() {
+  const biddings = await getBiddings();
   return biddings.find(b => b.status === 'active') || null;
 }
 
-// 최종제출 관련
-export function submitForwarder(biddingId, forwarderId) {
-  const biddings = getBiddings();
-  const index = biddings.findIndex(b => b.id === biddingId);
-  if (index !== -1) {
-    const submitted = biddings[index].submittedForwarders || [];
-    if (!submitted.includes(forwarderId)) {
-      submitted.push(forwarderId);
-      biddings[index].submittedForwarders = submitted;
-      setData('atomy_biddings', biddings);
-    }
-    return biddings[index];
-  }
-  return null;
+// ─── 최종제출 관련 ───────────────────────────────────────────────────────────
+export async function submitForwarder(biddingId, forwarderId) {
+  return apiFetch('/rates/submit', {
+    method: 'POST',
+    body: JSON.stringify({ biddingId, forwarderId })
+  });
 }
 
-export function revokeSubmission(biddingId, forwarderId) {
-  const biddings = getBiddings();
-  const index = biddings.findIndex(b => b.id === biddingId);
-  if (index !== -1) {
-    const submitted = biddings[index].submittedForwarders || [];
-    biddings[index].submittedForwarders = submitted.filter(id => id !== forwarderId);
-    setData('atomy_biddings', biddings);
-    return biddings[index];
-  }
-  return null;
+export async function revokeSubmission(biddingId, forwarderId) {
+  return apiFetch('/rates/revoke', {
+    method: 'POST',
+    body: JSON.stringify({ biddingId, forwarderId })
+  });
 }
 
-export function isForwarderSubmitted(biddingId, forwarderId) {
-  const biddings = getBiddings();
+export async function isForwarderSubmitted(biddingId, forwarderId) {
+  const biddings = await getBiddings();
   const bidding = biddings.find(b => b.id === biddingId);
   if (!bidding) return false;
-  return (bidding.submittedForwarders || []).includes(forwarderId);
+  return (bidding.submitted_forwarders || []).includes(forwarderId);
 }
 
-export function reopenBidding(biddingId, newDeadline) {
+export async function reopenBidding(biddingId, newDeadline) {
   return updateBidding(biddingId, {
     status: 'active',
     closedAt: null,
@@ -200,69 +177,46 @@ export function reopenBidding(biddingId, newDeadline) {
   });
 }
 
-// Rates CRUD
-export function getAllRates() {
-  return getData('atomy_rates') || [];
+// ─── Rates API ───────────────────────────────────────────────────────────────
+export async function getAllRates(biddingId) {
+  return apiFetch(`/rates?biddingId=${biddingId}`);
 }
 
-export function saveAllRates(rates) {
-  setData('atomy_rates', rates);
+export async function getRates(biddingId) {
+  return apiFetch(`/rates?biddingId=${biddingId}`);
 }
 
-export function getRates(biddingId) {
-  return getAllRates().filter(r => r.biddingId === biddingId);
+export async function getRatesByForwarder(biddingId, forwarderId) {
+  return apiFetch(`/rates?biddingId=${biddingId}&forwarderId=${forwarderId}`);
 }
 
-export function getRatesByForwarder(biddingId, forwarderId) {
-  return getAllRates().filter(r => r.biddingId === biddingId && r.forwarderId === forwarderId);
-}
-
-export function saveRate(rate) {
-  const rates = getAllRates();
-  const index = rates.findIndex(r => r.biddingId === rate.biddingId && r.routeId === rate.routeId && r.forwarderId === rate.forwarderId);
-  
-  const targetRate = { ...rate };
-  if (!targetRate.id) targetRate.id = generateId();
-
-  if (index !== -1) {
-    rates[index] = { ...rates[index], ...targetRate };
-  } else {
-    rates.push(targetRate);
-  }
-  saveAllRates(rates);
-  return targetRate;
-}
-
-export function saveRates(newRates) {
-  const rates = getAllRates();
-  
-  newRates.forEach(rate => {
-    const index = rates.findIndex(r => r.biddingId === rate.biddingId && r.routeId === rate.routeId && r.forwarderId === rate.forwarderId);
-    
-    const targetRate = { ...rate };
-    if (!targetRate.id) targetRate.id = generateId();
-    
-    if (index !== -1) {
-      rates[index] = { ...rates[index], ...targetRate };
-    } else {
-      rates.push(targetRate);
-    }
+export async function saveRate(rate) {
+  return apiFetch('/rates', {
+    method: 'POST',
+    body: JSON.stringify(rate)
   });
-  
-  saveAllRates(rates);
 }
 
-// Session
+export async function saveRates(rates) {
+  return apiFetch('/rates', {
+    method: 'POST',
+    body: JSON.stringify(rates)
+  });
+}
+
+// ─── Session (로컬 전용 - JWT와 함께 사용) ───────────────────────────────────
 export function getSession() {
-  return getData('atomy_session');
+  const data = localStorage.getItem('atomy_session');
+  return data ? JSON.parse(data) : null;
 }
 
 export function setSession(session) {
-  setData('atomy_session', session);
+  localStorage.setItem('atomy_session', JSON.stringify(session));
 }
 
 export function clearSession() {
   localStorage.removeItem('atomy_session');
+  localStorage.removeItem('atomy_jwt');
 }
 
 export function isAdmin() {
@@ -275,17 +229,9 @@ export function isForwarder() {
   return session?.role === 'forwarder';
 }
 
-// Init
-export function hasData() {
-  const routes = getData('atomy_routes');
-  return routes && routes.length > 0;
-}
-
-export function initSampleData() {
-  if (!hasData()) {
-    saveRoutes(sampleRoutes);
-    saveForwarders(sampleForwarders);
-    setData('atomy_biddings', [sampleBidding]);
-    saveAllRates(sampleRates);
-  }
-}
+// ─── Legacy 호환 (사용 안 함, 추후 제거) ────────────────────────────────────
+export function hasData() { return true; }
+export function initSampleData() { /* DB로 전환 완료 */ }
+export function saveRoutes() { /* API 사용 */ }
+export function saveForwarders() { /* API 사용 */ }
+export function saveAllRates() { /* API 사용 */ }

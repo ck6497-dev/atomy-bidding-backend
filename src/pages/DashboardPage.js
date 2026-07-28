@@ -5,34 +5,31 @@ import {
 import { downloadCSV, generateCSV } from '../utils/csv.js';
 import { formatCurrency, formatNumber } from '../utils/format.js';
 
-export function renderDashboardPage(container) {
+export async function renderDashboardPage(container) {
   let filterManager = 'all';
   let searchQuery = '';
-  let selectedBiddingId = null; // null = auto-select latest
+  let selectedBiddingId = null;
   
-  function render() {
-    const allBiddings = getBiddings();
-    const allRoutes = getRoutes();
-    const allForwarders = getForwarders();
+  async function render() {
+    const allBiddings = await getBiddings();
+    const allRoutes = await getRoutes();
+    const allForwarders = await getForwarders();
     
-    // Sort biddings: active first, then by date descending
     const sortedBiddings = [...allBiddings].sort((a, b) => {
       if (a.status === 'active' && b.status !== 'active') return -1;
       if (b.status === 'active' && a.status !== 'active') return 1;
-      return new Date(b.createdAt) - new Date(a.createdAt);
+      return new Date(b.created_at) - new Date(a.created_at);
     });
     
-    // Auto-select: active bidding first, otherwise most recent
     let currentBidding = null;
     if (selectedBiddingId) {
       currentBidding = allBiddings.find(b => b.id === selectedBiddingId);
     }
     if (!currentBidding && sortedBiddings.length > 0) {
-      currentBidding = sortedBiddings[0]; // active first, then most recent
+      currentBidding = sortedBiddings[0];
       selectedBiddingId = currentBidding.id;
     }
     
-    // Apply filters
     let filteredRoutes = allRoutes;
     if (filterManager !== 'all') {
       filteredRoutes = filteredRoutes.filter(r => r.manager === filterManager);
@@ -45,7 +42,6 @@ export function renderDashboardPage(container) {
       );
     }
     
-    // Get unique managers for filter
     const managers = [...new Set(allRoutes.map(r => r.manager).filter(Boolean))].sort();
 
     let stats = {
@@ -60,28 +56,25 @@ export function renderDashboardPage(container) {
     if (!currentBidding) {
       tableContent = `<div class="empty-state">등록된 입찰이 없습니다. 입찰 관리에서 새 입찰을 생성해주세요.</div>`;
     } else {
-      const allRates = getAllRates();
-      const ratesByBidding = allRates.filter(r => r.biddingId === currentBidding.id);
+      const allRatesData = await getAllRates(currentBidding.id);
+      const ratesByBidding = allRatesData;
       
-      // Calculate participation
-      const participatingIds = new Set(ratesByBidding.map(r => r.forwarderId));
+      const participatingIds = new Set(ratesByBidding.map(r => r.forwarder_id));
       stats.participatingForwarders = participatingIds.size;
       
-      // Calculate completion
       let expectedRates = 0;
       allRoutes.forEach(route => {
-        expectedRates += allForwarders.filter(f => f.assignedRoutes && f.assignedRoutes.includes(route.id)).length;
+        expectedRates += allForwarders.filter(f => f.assigned_routes && f.assigned_routes.includes(route.id)).length;
       });
       stats.completionRate = expectedRates ? Math.round((ratesByBidding.length / expectedRates) * 100) : 0;
       
-      // Build table rows
       let lowest20ftSum = 0;
       let routesWithLowest = 0;
       
       let rowsHtml = '';
       
       filteredRoutes.forEach(route => {
-        const assignedForwarders = allForwarders.filter(f => f.assignedRoutes && f.assignedRoutes.includes(route.id));
+        const assignedForwarders = allForwarders.filter(f => f.assigned_routes && f.assigned_routes.includes(route.id));
         
         if (assignedForwarders.length === 0) {
           rowsHtml += `
@@ -96,12 +89,12 @@ export function renderDashboardPage(container) {
         }
 
         const routeRates = assignedForwarders.map(f => {
-          const rate = ratesByBidding.find(r => r.routeId === route.id && r.forwarderId === f.id) || {};
+          const rate = ratesByBidding.find(r => r.route_id === route.id && r.forwarder_id === f.id) || {};
           return { forwarder: f, rate: rate };
         });
 
-        const valid20ft = routeRates.map(r => r.rate.rate20ft).filter(val => val !== null && val !== undefined && val !== '');
-        const valid40ft = routeRates.map(r => r.rate.rate40ft).filter(val => val !== null && val !== undefined && val !== '');
+        const valid20ft = routeRates.map(r => r.rate.rate_20ft).filter(val => val !== null && val !== undefined && val !== '');
+        const valid40ft = routeRates.map(r => r.rate.rate_40ft).filter(val => val !== null && val !== undefined && val !== '');
         
         const min20ft = valid20ft.length > 0 ? Math.min(...valid20ft) : null;
         const min40ft = valid40ft.length > 0 ? Math.min(...valid40ft) : null;
@@ -124,9 +117,9 @@ export function renderDashboardPage(container) {
             `;
           }
           
-          const r20 = item.rate.rate20ft !== undefined && item.rate.rate20ft !== null && item.rate.rate20ft !== '' ? formatCurrency(item.rate.rate20ft) : '-';
-          const r40 = item.rate.rate40ft !== undefined && item.rate.rate40ft !== null && item.rate.rate40ft !== '' ? formatCurrency(item.rate.rate40ft) : '-';
-          const ttime = item.rate.transitTime ? item.rate.transitTime : '-';
+          const r20 = item.rate.rate_20ft !== undefined && item.rate.rate_20ft !== null && item.rate.rate_20ft !== '' ? formatCurrency(item.rate.rate_20ft) : '-';
+          const r40 = item.rate.rate_40ft !== undefined && item.rate.rate_40ft !== null && item.rate.rate_40ft !== '' ? formatCurrency(item.rate.rate_40ft) : '-';
+          const ttime = item.rate.transit_time ? item.rate.transit_time : '-';
           const remark = item.rate.remark ? item.rate.remark : '';
 
           html += `
@@ -150,7 +143,6 @@ export function renderDashboardPage(container) {
       }
     }
 
-    // Build bidding selector options
     const biddingStatusLabel = (b) => {
       if (b.status === 'active') return '진행중';
       if (b.status === 'closed') return '마감됨';
@@ -243,8 +235,6 @@ export function renderDashboardPage(container) {
     `;
 
     // === Event Listeners ===
-    
-    // Bidding selector
     const biddingSelector = container.querySelector('#bidding-selector');
     if (biddingSelector) {
       biddingSelector.addEventListener('change', (e) => {
@@ -253,13 +243,11 @@ export function renderDashboardPage(container) {
       });
     }
 
-    // Manager filter
     container.querySelector('#filter-manager').addEventListener('change', (e) => {
       filterManager = e.target.value;
       render();
     });
 
-    // Search input
     const searchInput = container.querySelector('#search-query');
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
@@ -268,29 +256,27 @@ export function renderDashboardPage(container) {
       searchTimeout = setTimeout(() => render(), 300);
     });
 
-    // CSV download
     const downloadBtn = container.querySelector('#btn-download-csv');
     if (downloadBtn) {
-      downloadBtn.addEventListener('click', () => {
+      downloadBtn.addEventListener('click', async () => {
         if (!currentBidding) return;
         
         const exportData = [];
-        const allRates = getAllRates();
-        const ratesByBidding = allRates.filter(r => r.biddingId === currentBidding.id);
+        const allRatesData = await getAllRates(currentBidding.id);
         
         filteredRoutes.forEach(route => {
-          const assignedFws = allForwarders.filter(f => f.assignedRoutes && f.assignedRoutes.includes(route.id));
+          const assignedFws = allForwarders.filter(f => f.assigned_routes && f.assigned_routes.includes(route.id));
           assignedFws.forEach(f => {
-            const rate = ratesByBidding.find(r => r.routeId === route.id && r.forwarderId === f.id) || {};
+            const rate = allRatesData.find(r => r.route_id === route.id && r.forwarder_id === f.id) || {};
             exportData.push({
               No: route.no,
               국가: route.country,
               POD: route.pod,
-              담당자: route.manager,
+              담당자: route.manager || '',
               포워더명: f.name,
-              '20FT': rate.rate20ft || '',
-              '40FT': rate.rate40ft || '',
-              'T.TIME': rate.transitTime || '',
+              '20FT': rate.rate_20ft || '',
+              '40FT': rate.rate_40ft || '',
+              'T.TIME': rate.transit_time || '',
               REMARK: rate.remark || ''
             });
           });
@@ -302,5 +288,5 @@ export function renderDashboardPage(container) {
     }
   }
 
-  render();
+  await render();
 }

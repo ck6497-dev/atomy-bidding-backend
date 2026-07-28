@@ -2,9 +2,9 @@ import { getForwarders, addForwarder, updateForwarder, deleteForwarder, getRoute
 import { showModal, closeModal } from '../components/Modal.js';
 import { showToast } from '../components/Toast.js';
 
-export function renderForwardersPage(container) {
-  function render() {
-    const forwarders = getForwarders();
+export async function renderForwardersPage(container) {
+  async function render() {
+    const forwarders = await getForwarders();
     
     container.innerHTML = `
       <div class="page-header">
@@ -20,7 +20,7 @@ export function renderForwardersPage(container) {
             <div style="flex-grow: 1;">
               <h3 style="margin-top: 0; margin-bottom: 0.5rem; color: var(--text-primary);">${f.name}</h3>
               <p style="color: var(--text-secondary); margin-bottom: 0.25rem; font-size: 0.9rem;">📧 ${f.email || '<span style="color:var(--text-muted);">이메일 없음</span>'}</p>
-              <p style="color: var(--text-secondary); margin-bottom: 1rem;">지정된 노선 수: <strong style="color: var(--text-primary);">${f.assignedRoutes ? f.assignedRoutes.length : 0}</strong>개</p>
+              <p style="color: var(--text-secondary); margin-bottom: 1rem;">지정된 노선 수: <strong style="color: var(--text-primary);">${f.assigned_routes ? f.assigned_routes.length : 0}</strong>개</p>
             </div>
             <div class="card-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
               <button class="btn btn-sm btn-outline btn-assign" data-id="${f.id}">노선 지정</button>
@@ -38,28 +38,30 @@ export function renderForwardersPage(container) {
     });
 
     container.querySelectorAll('.btn-edit').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
-        const forwarder = getForwarders().find(f => f.id === id);
+        const allForwarders = await getForwarders();
+        const forwarder = allForwarders.find(f => f.id === id);
         if (forwarder) openForwarderModal(forwarder);
       });
     });
 
     container.querySelectorAll('.btn-assign').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
-        const forwarder = getForwarders().find(f => f.id === id);
+        const allForwarders = await getForwarders();
+        const forwarder = allForwarders.find(f => f.id === id);
         if (forwarder) openAssignModal(forwarder);
       });
     });
 
     container.querySelectorAll('.btn-delete').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         if (confirm('정말로 이 포워더를 삭제하시겠습니까?')) {
-          deleteForwarder(id);
+          await deleteForwarder(id);
           showToast('삭제되었습니다.');
-          render();
+          await render();
         }
       });
     });
@@ -74,8 +76,9 @@ export function renderForwardersPage(container) {
           <input type="text" id="forwarder-name" class="form-input" value="${forwarder ? forwarder.name : ''}" required>
         </div>
         <div class="form-group">
-          <label>이메일 주소</label>
+          <label>이메일 주소 (포워더 로그인 ID로 사용됨)</label>
           <input type="email" id="forwarder-email" class="form-input" value="${forwarder && forwarder.email ? forwarder.email : ''}" placeholder="메일발송 시 사용할 이메일">
+          <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">이메일 입력 시, 초기 비밀번호 <b>123qwe!@#</b> 로 포워더 계정이 자동 생성됩니다.</small>
         </div>
         <div class="modal-footer" style="margin-top: 1rem; text-align: right;">
           <button type="button" class="btn btn-outline" id="btn-cancel-forwarder">취소</button>
@@ -91,26 +94,30 @@ export function renderForwardersPage(container) {
 
     document.getElementById('btn-cancel-forwarder').addEventListener('click', closeModal);
 
-    document.getElementById('forwarder-form').addEventListener('submit', (e) => {
+    document.getElementById('forwarder-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('forwarder-name').value;
       const email = document.getElementById('forwarder-email').value;
       
-      if (isEdit) {
-        updateForwarder(forwarder.id, { name, email });
-        showToast('포워더가 수정되었습니다.');
-      } else {
-        addForwarder({ name, email, assignedRoutes: [] });
-        showToast('포워더가 추가되었습니다.');
+      try {
+        if (isEdit) {
+          await updateForwarder(forwarder.id, { name, email });
+          showToast('포워더가 수정되었습니다.');
+        } else {
+          await addForwarder({ name, email, assigned_routes: [] });
+          showToast('포워더가 추가되었습니다.');
+        }
+        closeModal();
+        await render();
+      } catch (err) {
+        showToast('오류: ' + err.message, 'error');
       }
-      closeModal();
-      render();
     });
   }
 
-  function openAssignModal(forwarder) {
-    const routes = getRoutes();
-    const assigned = forwarder.assignedRoutes || [];
+  async function openAssignModal(forwarder) {
+    const routes = await getRoutes();
+    const assigned = forwarder.assigned_routes || [];
     
     let routesHtml = routes.map(route => `
       <div class="checkbox-item" style="padding: 0.5rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.5rem;">
@@ -144,7 +151,6 @@ export function renderForwardersPage(container) {
     const checkAll = document.getElementById('chk-all');
     const checkboxes = document.querySelectorAll('.route-chk');
     
-    // Set initial checkAll state
     checkAll.checked = checkboxes.length > 0 && Array.from(checkboxes).every(c => c.checked);
 
     checkAll.addEventListener('change', (e) => {
@@ -157,17 +163,17 @@ export function renderForwardersPage(container) {
       });
     });
 
-    document.getElementById('btn-save-assign').addEventListener('click', () => {
+    document.getElementById('btn-save-assign').addEventListener('click', async () => {
       const selectedRoutes = Array.from(checkboxes)
         .filter(c => c.checked)
         .map(c => c.value);
       
-      updateForwarder(forwarder.id, { assignedRoutes: selectedRoutes });
+      await updateForwarder(forwarder.id, { assigned_routes: selectedRoutes });
       showToast('노선 지정이 저장되었습니다.');
       closeModal();
-      render();
+      await render();
     });
   }
 
-  render();
+  await render();
 }

@@ -1,11 +1,11 @@
-import { getRoutes, saveRoutes, addRoute, updateRoute, deleteRoute, generateId } from '../store.js';
+import { getRoutes, addRoute, updateRoute, deleteRoute, bulkAddRoutes, generateId } from '../store.js';
 import { showModal, closeModal } from '../components/Modal.js';
 import { showToast } from '../components/Toast.js';
 import { parseCSV, generateCSV, downloadCSV, readFileAsText } from '../utils/csv.js';
 
-export function renderRoutesPage(container) {
-  function render() {
-    const routes = getRoutes();
+export async function renderRoutesPage(container) {
+  async function render() {
+    const routes = await getRoutes();
     
     container.innerHTML = `
       <div class="page-header">
@@ -35,7 +35,7 @@ export function renderRoutesPage(container) {
                 <td>${route.no}</td>
                 <td>${route.country}</td>
                 <td>${route.pod}</td>
-                <td>${route.manager}</td>
+                <td>${route.manager || ''}</td>
                 <td>
                   <button class="btn btn-sm btn-outline btn-edit" data-id="${route.id}">편집</button>
                   <button class="btn btn-sm btn-danger btn-delete" data-id="${route.id}">삭제</button>
@@ -63,18 +63,20 @@ export function renderRoutesPage(container) {
           const text = await readFileAsText(file);
           const data = parseCSV(text);
           if (data && data.length > 0) {
-            data.forEach(row => {
-              if (row['No'] && row['국가'] && row['POD']) {
-                addRoute({
-                  no: row['No'],
-                  country: row['국가'],
-                  pod: row['POD'],
-                  manager: row['담당자'] || ''
-                });
-              }
-            });
-            showToast('CSV 업로드 완료');
-            render();
+            const routesToAdd = data
+              .filter(row => row['No'] && row['국가'] && row['POD'])
+              .map(row => ({
+                no: row['No'],
+                country: row['국가'],
+                pod: row['POD'],
+                manager: row['담당자'] || ''
+              }));
+            
+            if (routesToAdd.length > 0) {
+              await bulkAddRoutes(routesToAdd);
+              showToast(`CSV 업로드 완료 (${routesToAdd.length}건)`);
+              await render();
+            }
           }
         } catch (err) {
           showToast('CSV 처리 중 오류 발생', 'error');
@@ -83,33 +85,34 @@ export function renderRoutesPage(container) {
       e.target.value = ''; // Reset
     });
 
-    container.querySelector('#btn-download-csv').addEventListener('click', () => {
-      const routes = getRoutes();
+    container.querySelector('#btn-download-csv').addEventListener('click', async () => {
+      const routes = await getRoutes();
       const exportData = routes.map(r => ({
         No: r.no,
         국가: r.country,
         POD: r.pod,
-        담당자: r.manager
+        담당자: r.manager || ''
       }));
       const csvContent = generateCSV(exportData);
       downloadCSV(csvContent, 'routes.csv');
     });
 
     container.querySelectorAll('.btn-edit').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
-        const route = getRoutes().find(r => r.id === id);
+        const allRoutes = await getRoutes();
+        const route = allRoutes.find(r => r.id === id);
         if (route) openRouteModal(route);
       });
     });
 
     container.querySelectorAll('.btn-delete').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         if (confirm('정말로 이 노선을 삭제하시겠습니까?')) {
-          deleteRoute(id);
+          await deleteRoute(id);
           showToast('삭제되었습니다.');
-          render();
+          await render();
         }
       });
     });
@@ -133,7 +136,7 @@ export function renderRoutesPage(container) {
         </div>
         <div class="form-group">
           <label>담당자</label>
-          <input type="text" id="route-manager" class="form-input" value="${route ? route.manager : ''}">
+          <input type="text" id="route-manager" class="form-input" value="${route ? (route.manager || '') : ''}">
         </div>
         <div class="modal-footer" style="margin-top: 1rem; text-align: right;">
           <button type="button" class="btn btn-outline" id="btn-cancel-route">취소</button>
@@ -151,7 +154,7 @@ export function renderRoutesPage(container) {
       closeModal();
     });
 
-    document.getElementById('route-form').addEventListener('submit', (e) => {
+    document.getElementById('route-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const routeData = {
         no: document.getElementById('route-no').value,
@@ -160,17 +163,21 @@ export function renderRoutesPage(container) {
         manager: document.getElementById('route-manager').value
       };
 
-      if (isEdit) {
-        updateRoute(route.id, routeData);
-        showToast('노선이 수정되었습니다.');
-      } else {
-        addRoute(routeData);
-        showToast('노선이 추가되었습니다.');
+      try {
+        if (isEdit) {
+          await updateRoute(route.id, routeData);
+          showToast('노선이 수정되었습니다.');
+        } else {
+          await addRoute(routeData);
+          showToast('노선이 추가되었습니다.');
+        }
+        closeModal();
+        await render();
+      } catch (err) {
+        showToast('오류: ' + err.message, 'error');
       }
-      closeModal();
-      render();
     });
   }
 
-  render();
+  await render();
 }

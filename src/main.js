@@ -1,4 +1,4 @@
-import { initSampleData, hasData, getSession, isAdmin, isForwarder, clearSession } from './store.js';
+import { getSession, isAdmin, isForwarder, clearSession } from './store.js';
 import { registerRoute, navigate, initRouter } from './router.js';
 import { renderHeader } from './components/Header.js';
 import { renderSidebar } from './components/Sidebar.js';
@@ -11,22 +11,16 @@ import { renderRateEntryPage } from './pages/RateEntryPage.js';
 import { renderAdminsPage } from './pages/AdminsPage.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (!hasData()) {
-    initSampleData();
-  }
-
   const appContainer = document.getElementById('app');
   if (!appContainer) return;
 
   function renderAppLayout() {
     const session = getSession();
     if (!session) {
-      // Login mode: full screen, no header/sidebar
       appContainer.innerHTML = '<div id="main-content"></div>';
       return document.getElementById('main-content');
     }
     
-    // App mode: header + sidebar + content
     appContainer.innerHTML = `
       <div id="header-container"></div>
       <div id="sidebar-container"></div>
@@ -39,9 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
     return document.getElementById('main-content');
   }
 
-  // Route handler wrapper that ensures layout is correct
+  // Route handler wrapper — supports async page renderers
   function withLayout(pageRenderer, requiredRole) {
-    return (container) => {
+    return async (container) => {
       const session = getSession();
       if (requiredRole === 'admin' && !isAdmin()) {
         return navigate('#/rate-entry');
@@ -51,7 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       const mainContent = renderAppLayout();
-      pageRenderer(mainContent);
+      mainContent.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:200px;color:var(--text-secondary);">로딩 중...</div>';
+      await pageRenderer(mainContent);
     };
   }
 
@@ -66,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   registerRoute('#/forwarders', withLayout(renderForwardersPage, 'admin'));
   registerRoute('#/bidding', withLayout(renderBiddingPage, 'admin'));
   registerRoute('#/rate-entry', withLayout(renderRateEntryPage, 'forwarder'));
-  registerRoute('#/admins', withLayout(renderAdminsPage, 'admin')); // Only super_admin can see it, but layout is admin level
+  registerRoute('#/admins', withLayout(renderAdminsPage, 'admin'));
 
   // Initial navigation
   const session = getSession();
@@ -83,6 +78,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Initialize router - it will handle the current hash
   initRouter(appContainer);
 });

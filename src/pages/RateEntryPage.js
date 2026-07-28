@@ -3,7 +3,7 @@ import { renderDataGrid } from '../components/DataGrid.js';
 import { showToast } from '../components/Toast.js';
 import { showModal } from '../components/Modal.js';
 
-export function renderRateEntryPage(container) {
+export async function renderRateEntryPage(container) {
   const session = getSession();
   
   if (!session || session.role !== 'forwarder') {
@@ -14,19 +14,20 @@ export function renderRateEntryPage(container) {
   let selectedBiddingId = null;
   let isEditing = false;
   let hasChanges = false;
-  let editGridData = null; // 편집 중 데이터 (원본과 분리)
+  let editGridData = null;
 
-  function render() {
+  async function render() {
     const forwarderId = session.forwarderId;
-    const forwarder = getForwarders().find(f => f.id === forwarderId);
-    const allBiddings = getBiddings();
+    const allForwarders = await getForwarders();
+    const forwarder = allForwarders.find(f => f.id === forwarderId);
+    const allBiddings = await getBiddings();
     
     const sortedBiddings = [...allBiddings]
       .filter(b => b.status === 'active' || b.status === 'closed')
       .sort((a, b) => {
         if (a.status === 'active' && b.status !== 'active') return -1;
         if (b.status === 'active' && a.status !== 'active') return 1;
-        return new Date(b.createdAt) - new Date(a.createdAt);
+        return new Date(b.created_at) - new Date(a.created_at);
       });
 
     let bidding = null;
@@ -39,7 +40,7 @@ export function renderRateEntryPage(container) {
     }
 
     const isClosed = bidding ? bidding.status === 'closed' : true;
-    const isSubmitted = bidding ? isForwarderSubmitted(bidding.id, forwarderId) : false;
+    const isSubmitted = bidding ? (bidding.submitted_forwarders || []).includes(forwarderId) : false;
 
     if (!bidding || sortedBiddings.length === 0) {
       container.innerHTML = `
@@ -52,8 +53,9 @@ export function renderRateEntryPage(container) {
       return;
     }
 
-    const assignedRouteIds = forwarder.assignedRoutes || [];
-    const routes = getRoutes().filter(r => assignedRouteIds.includes(r.id));
+    const assignedRouteIds = forwarder ? (forwarder.assigned_routes || []) : [];
+    const allRoutes = await getRoutes();
+    const routes = allRoutes.filter(r => assignedRouteIds.includes(r.id));
 
     if (routes.length === 0) {
       container.innerHTML = `
@@ -66,28 +68,24 @@ export function renderRateEntryPage(container) {
       return;
     }
 
-    // Get existing rates from store
-    const existingRates = getRatesByForwarder(bidding.id, forwarderId);
+    const existingRates = await getRatesByForwarder(bidding.id, forwarderId);
 
-    // 원본 데이터 (저장된 값)
     const savedGridData = routes.map(route => {
-      const rate = existingRates.find(r => r.routeId === route.id) || {};
+      const rate = existingRates.find(r => r.route_id === route.id) || {};
       return {
         id: route.id,
         no: route.no,
         country: route.country,
         pod: route.pod,
-        rate20ft: rate.rate20ft !== undefined && rate.rate20ft !== null ? rate.rate20ft : '',
-        rate40ft: rate.rate40ft !== undefined && rate.rate40ft !== null ? rate.rate40ft : '',
-        transitTime: rate.transitTime !== undefined && rate.transitTime !== null ? rate.transitTime : '',
+        rate20ft: rate.rate_20ft !== undefined && rate.rate_20ft !== null ? rate.rate_20ft : '',
+        rate40ft: rate.rate_40ft !== undefined && rate.rate_40ft !== null ? rate.rate_40ft : '',
+        transitTime: rate.transit_time !== undefined && rate.transit_time !== null ? rate.transit_time : '',
         remark: rate.remark || ''
       };
     });
 
-    // 편집 중이면 editGridData 사용, 아니면 savedGridData
     const gridData = isEditing && editGridData ? editGridData : savedGridData;
 
-    // 컬럼 정의
     const columns = [
       { key: 'country', label: '국가', type: 'readonly', width: '15%' },
       { key: 'pod', label: 'POD', type: 'readonly', width: '15%' },
@@ -97,7 +95,6 @@ export function renderRateEntryPage(container) {
       { key: 'remark', label: 'REMARK', type: 'text', width: '40%' }
     ];
 
-    // 편집 모드가 아니거나 마감/최종제출 상태이면 → 모든 셀 읽기 전용
     if (!isEditing || isClosed || isSubmitted) {
       columns.forEach(col => {
         if (col.type !== 'readonly') col.type = 'readonly';
@@ -107,7 +104,6 @@ export function renderRateEntryPage(container) {
     const statusLabel = (b) => b.status === 'active' ? '진행중' : '마감됨';
     const statusIcon = (b) => b.status === 'active' ? '🟢' : '🔴';
 
-    // 상태 메시지
     let statusMessage = '';
     if (isClosed) {
       statusMessage = '<span style="color: var(--danger); font-weight: bold;">🔒 마감된 입찰 (읽기 전용)</span>';
@@ -119,7 +115,6 @@ export function renderRateEntryPage(container) {
       statusMessage = '<span style="color: var(--text-muted); font-size: 0.9em;">📋 조회 모드</span>';
     }
 
-    // 버튼 영역
     let buttonsHtml = '';
     if (!isClosed && !isSubmitted) {
       if (isEditing) {
@@ -182,8 +177,6 @@ export function renderRateEntryPage(container) {
     `;
 
     // === 이벤트 바인딩 ===
-
-    // 입찰 선택 (편집 중이 아닐 때만)
     const biddingSelector = container.querySelector('#bidding-selector');
     if (biddingSelector) {
       biddingSelector.addEventListener('change', (e) => {
@@ -195,19 +188,16 @@ export function renderRateEntryPage(container) {
       });
     }
 
-    // [편집] 버튼
     const editBtn = container.querySelector('#btn-edit');
     if (editBtn) {
       editBtn.addEventListener('click', () => {
         isEditing = true;
         hasChanges = false;
-        // 원본 데이터 복사 (편집 중 변경은 이 복사본에서만)
         editGridData = savedGridData.map(row => ({ ...row }));
         render();
       });
     }
 
-    // [취소] 버튼
     const cancelBtn = container.querySelector('#btn-cancel-edit');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => {
@@ -231,11 +221,9 @@ export function renderRateEntryPage(container) {
       });
     }
 
-    // [저장] 버튼
     const saveBtn = container.querySelector('#btn-save');
     if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        // === 유효성 검사 ===
+      saveBtn.addEventListener('click', async () => {
         const numericFields = [
           { key: 'rate20ft', label: '20FT' },
           { key: 'rate40ft', label: '40FT' },
@@ -276,8 +264,8 @@ export function renderRateEntryPage(container) {
         }
 
         // === 저장 ===
-        gridData.forEach(row => {
-          saveRate({
+        for (const row of gridData) {
+          await saveRate({
             biddingId: bidding.id,
             routeId: row.id,
             forwarderId: forwarderId,
@@ -286,21 +274,19 @@ export function renderRateEntryPage(container) {
             transitTime: row.transitTime === '' ? null : Number(row.transitTime),
             remark: row.remark
           });
-        });
+        }
 
         isEditing = false;
         hasChanges = false;
         editGridData = null;
         showToast('운임이 저장되었습니다 ✓');
-        render();
+        await render();
       });
     }
 
-    // [최종제출] 버튼
     const finalSubmitBtn = container.querySelector('#btn-final-submit');
     if (finalSubmitBtn) {
       finalSubmitBtn.addEventListener('click', () => {
-        // 운임이 하나라도 입력되어 있는지 확인
         const hasAnyRate = savedGridData.some(row => 
           (row.rate20ft !== '' && row.rate20ft !== null) || 
           (row.rate40ft !== '' && row.rate40ft !== null)
@@ -324,10 +310,10 @@ export function renderRateEntryPage(container) {
             </div>
           `,
           confirmText: '최종제출',
-          onConfirm: () => {
-            submitForwarder(bidding.id, forwarderId);
+          onConfirm: async () => {
+            await submitForwarder(bidding.id, forwarderId);
             showToast('✅ 최종제출이 완료되었습니다.');
-            render();
+            await render();
           }
         });
       });
@@ -340,7 +326,6 @@ export function renderRateEntryPage(container) {
       if (!isEditing || isClosed) return;
       gridData[rowIndex][colKey] = value;
       hasChanges = true;
-      // 상태 메시지 실시간 업데이트
       const statusEl = document.getElementById('save-status');
       if (statusEl) {
         statusEl.innerHTML = '✏️ 편집 중 — <strong style="color: var(--warning);">변경사항 있음</strong>';
@@ -355,5 +340,5 @@ export function renderRateEntryPage(container) {
     });
   }
 
-  render();
+  await render();
 }

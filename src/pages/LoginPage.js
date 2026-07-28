@@ -75,7 +75,8 @@ export function renderLoginPage(container) {
           setSession({
             role: result.user.role,
             email: result.user.email,
-            id: result.user.id
+            id: result.user.id,
+            forwarderId: result.user.forwarderId || null
           });
           
           if (result.user.role === 'admin' || result.user.role === 'super_admin') {
@@ -104,7 +105,8 @@ export function renderLoginPage(container) {
           setSession({
             role: result.user.role,
             email: result.user.email,
-            id: result.user.id
+            id: result.user.id,
+            forwarderId: result.user.forwarderId || null
           });
 
           if (result.user.role === 'admin' || result.user.role === 'super_admin') {

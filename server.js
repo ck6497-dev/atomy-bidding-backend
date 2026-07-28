@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import pg from 'pg';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -85,7 +86,8 @@ async function initDB() {
         id VARCHAR(50) PRIMARY KEY,
         no VARCHAR(20),
         country VARCHAR(100),
-        pod VARCHAR(100)
+        pod VARCHAR(100),
+        manager VARCHAR(100)
       );
 
       CREATE TABLE IF NOT EXISTS biddings (
@@ -140,6 +142,13 @@ function requireSuperAdmin(req, res, next) {
   next();
 }
 
+function requireAdmin(req, res, next) {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
+  }
+  next();
+}
+
 // ─── AUTH API ────────────────────────────────────────────────────────────────
 // 로그인
 app.post('/api/login', async (req, res) => {
@@ -164,7 +173,13 @@ app.post('/api/login', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
-    res.json({ token, user: { id: user.id, email: user.email, role: user.role } });
+    const userInfo = { id: user.id, email: user.email, role: user.role };
+    // 포워더인 경우 forwarderId도 조회
+    if (user.role === 'forwarder') {
+      const fwResult = await pool.query('SELECT id FROM forwarders WHERE email = $1', [user.email]);
+      if (fwResult.rows.length > 0) userInfo.forwarderId = fwResult.rows[0].id;
+    }
+    res.json({ token, user: userInfo });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -186,8 +201,12 @@ app.post('/api/set-password', async (req, res) => {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
-
-    res.json({ message: '비밀번호가 성공적으로 설정되었습니다.', token, user: { id: user.id, email: user.email, role: user.role } });
+    const userInfo = { id: user.id, email: user.email, role: user.role };
+    if (user.role === 'forwarder') {
+      const fwResult = await pool.query('SELECT id FROM forwarders WHERE email = $1', [user.email]);
+      if (fwResult.rows.length > 0) userInfo.forwarderId = fwResult.rows[0].id;
+    }
+    res.json({ message: '비밀번호가 성공적으로 설정되었습니다.', token, user: userInfo });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -252,6 +271,342 @@ app.post('/api/send-email', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('이메일 발송 오류:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── 포워더 API ──────────────────────────────────────────────────────────────
+app.get('/api/forwarders', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM forwarders');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/forwarders', authenticateToken, requireAdmin, async (req, res) => {
+  const { name, email, assigned_routes } = req.body;
+  if (!name) return res.status(400).json({ error: '이름을 입력해주세요.' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const id = crypto.randomUUID();
+    const routesJson = JSON.stringify(assigned_routes || []);
+    
+    await client.query(
+      'INSERT INTO forwarders (id, name, email, assigned_routes) VALUES ($1, $2, $3, $4)',
+      [id, name, email || null, routesJson]
+    );
+
+    if (email) {
+      const defaultPassword = process.env.DEFAULT_INITIAL_PASSWORD || '123qwe!@#';
+      const hash = await bcrypt.hash(defaultPassword, 10);
+      await client.query(
+        "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'forwarder', true) ON CONFLICT (email) DO NOTHING",
+        [email, hash]
+      );
+    }
+    
+    await client.query('COMMIT');
+    res.json({ message: '포워더가 추가되었습니다.', id });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, email, assigned_routes } = req.body;
+  if (!name) return res.status(400).json({ error: '이름을 입력해주세요.' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const oldForwarder = await client.query('SELECT * FROM forwarders WHERE id = $1', [id]);
+    if (oldForwarder.rows.length === 0) throw new Error('포워더를 찾을 수 없습니다.');
+    const oldEmail = oldForwarder.rows[0].email;
+    const routesJson = JSON.stringify(assigned_routes || []);
+    
+    await client.query(
+      'UPDATE forwarders SET name = $1, email = $2, assigned_routes = $3 WHERE id = $4',
+      [name, email || null, routesJson, id]
+    );
+
+    if (oldEmail !== email) {
+      if (oldEmail) {
+        await client.query('DELETE FROM users WHERE email = $1 AND role = $2', [oldEmail, 'forwarder']);
+      }
+      if (email) {
+        const defaultPassword = process.env.DEFAULT_INITIAL_PASSWORD || '123qwe!@#';
+        const hash = await bcrypt.hash(defaultPassword, 10);
+        await client.query(
+          "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'forwarder', true) ON CONFLICT (email) DO NOTHING",
+          [email, hash]
+        );
+      }
+    }
+    
+    await client.query('COMMIT');
+    res.json({ message: '포워더가 수정되었습니다.' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const oldForwarder = await client.query('SELECT * FROM forwarders WHERE id = $1', [id]);
+    if (oldForwarder.rows.length > 0) {
+      const email = oldForwarder.rows[0].email;
+      await client.query('DELETE FROM forwarders WHERE id = $1', [id]);
+      if (email) {
+        await client.query('DELETE FROM users WHERE email = $1 AND role = $2', [email, 'forwarder']);
+      }
+    }
+    await client.query('COMMIT');
+    res.json({ message: '포워더가 삭제되었습니다.' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── 노선 API ────────────────────────────────────────────────────────────────
+app.get('/api/routes', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM routes');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/routes', authenticateToken, requireAdmin, async (req, res) => {
+  const { no, country, pod, manager } = req.body;
+  try {
+    const id = crypto.randomUUID();
+    await pool.query(
+      'INSERT INTO routes (id, no, country, pod, manager) VALUES ($1, $2, $3, $4, $5)',
+      [id, no, country, pod, manager]
+    );
+    res.json({ message: '노선이 추가되었습니다.', id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/routes/:id', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { no, country, pod, manager } = req.body;
+  try {
+    await pool.query(
+      'UPDATE routes SET no = $1, country = $2, pod = $3, manager = $4 WHERE id = $5',
+      [no, country, pod, manager, id]
+    );
+    res.json({ message: '노선이 수정되었습니다.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/routes/:id', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM routes WHERE id = $1', [id]);
+    res.json({ message: '노선이 삭제되었습니다.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/routes/bulk', authenticateToken, requireAdmin, async (req, res) => {
+  const routes = req.body;
+  if (!Array.isArray(routes)) return res.status(400).json({ error: '배열 형식이 필요합니다.' });
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const r of routes) {
+      const id = crypto.randomUUID();
+      await client.query(
+        'INSERT INTO routes (id, no, country, pod, manager) VALUES ($1, $2, $3, $4, $5)',
+        [id, r.no, r.country, r.pod, r.manager]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ message: `${routes.length}개의 노선이 일괄 추가되었습니다.` });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── 입찰 API ────────────────────────────────────────────────────────────────
+app.get('/api/biddings', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM biddings ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/biddings', authenticateToken, requireAdmin, async (req, res) => {
+  const { title, year, month, deadline } = req.body;
+  if (!title || !year || !month) return res.status(400).json({ error: '필수 값이 누락되었습니다.' });
+  
+  try {
+    const check = await pool.query('SELECT id FROM biddings WHERE year = $1 AND month = $2', [year, month]);
+    if (check.rows.length > 0) {
+      return res.status(400).json({ error: '해당 연월의 입찰이 이미 존재합니다.' });
+    }
+    
+    const id = crypto.randomUUID();
+    await pool.query(
+      'INSERT INTO biddings (id, title, year, month, deadline) VALUES ($1, $2, $3, $4, $5)',
+      [id, title, year, month, deadline || null]
+    );
+    res.json({ message: '입찰이 생성되었습니다.', id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/biddings/:id', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { title, deadline, status } = req.body;
+  try {
+    await pool.query(
+      'UPDATE biddings SET title = $1, deadline = $2, status = $3 WHERE id = $4',
+      [title, deadline || null, status, id]
+    );
+    res.json({ message: '입찰이 수정되었습니다.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── 운임 API ────────────────────────────────────────────────────────────────
+app.get('/api/rates', authenticateToken, async (req, res) => {
+  const { biddingId, forwarderId } = req.query;
+  if (!biddingId) return res.status(400).json({ error: 'biddingId가 필요합니다.' });
+  
+  try {
+    let query = 'SELECT * FROM rates WHERE bidding_id = $1';
+    let params = [biddingId];
+    
+    if (forwarderId) {
+      query += ' AND forwarder_id = $2';
+      params.push(forwarderId);
+    }
+    
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/rates', authenticateToken, async (req, res) => {
+  const { rates } = req.body;
+  const ratesArray = Array.isArray(rates) ? rates : [rates];
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const r of ratesArray) {
+      const { bidding_id, forwarder_id, route_id, rate_20ft, rate_40ft, transit_time, remark } = r;
+      
+      const check = await client.query(
+        'SELECT id FROM rates WHERE bidding_id = $1 AND forwarder_id = $2 AND route_id = $3',
+        [bidding_id, forwarder_id, route_id]
+      );
+      
+      if (check.rows.length > 0) {
+        await client.query(
+          'UPDATE rates SET rate_20ft = $1, rate_40ft = $2, transit_time = $3, remark = $4, updated_at = NOW() WHERE id = $5',
+          [rate_20ft || null, rate_40ft || null, transit_time || null, remark || null, check.rows[0].id]
+        );
+      } else {
+        const id = crypto.randomUUID();
+        await client.query(
+          'INSERT INTO rates (id, bidding_id, forwarder_id, route_id, rate_20ft, rate_40ft, transit_time, remark) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+          [id, bidding_id, forwarder_id, route_id, rate_20ft || null, rate_40ft || null, transit_time || null, remark || null]
+        );
+      }
+    }
+    await client.query('COMMIT');
+    res.json({ message: '운임이 저장되었습니다.' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/rates/submit', authenticateToken, async (req, res) => {
+  const { biddingId, forwarderId } = req.body;
+  if (!biddingId || !forwarderId) return res.status(400).json({ error: '필수 값이 누락되었습니다.' });
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const b = await client.query('SELECT submitted_forwarders FROM biddings WHERE id = $1', [biddingId]);
+    if (b.rows.length === 0) throw new Error('입찰을 찾을 수 없습니다.');
+    
+    let arr = b.rows[0].submitted_forwarders || [];
+    if (!Array.isArray(arr)) arr = [];
+    if (!arr.includes(forwarderId)) {
+      arr.push(forwarderId);
+      await client.query('UPDATE biddings SET submitted_forwarders = $1 WHERE id = $2', [JSON.stringify(arr), biddingId]);
+    }
+    await client.query('COMMIT');
+    res.json({ message: '제출 완료' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/rates/revoke', authenticateToken, async (req, res) => {
+  const { biddingId, forwarderId } = req.body;
+  if (!biddingId || !forwarderId) return res.status(400).json({ error: '필수 값이 누락되었습니다.' });
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const b = await client.query('SELECT submitted_forwarders FROM biddings WHERE id = $1', [biddingId]);
+    if (b.rows.length === 0) throw new Error('입찰을 찾을 수 없습니다.');
+    
+    let arr = b.rows[0].submitted_forwarders || [];
+    if (!Array.isArray(arr)) arr = [];
+    arr = arr.filter(id => id !== forwarderId);
+    
+    await client.query('UPDATE biddings SET submitted_forwarders = $1 WHERE id = $2', [JSON.stringify(arr), biddingId]);
+    await client.query('COMMIT');
+    res.json({ message: '제출 취소 완료' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
   }
 });
 
