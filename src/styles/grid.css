@@ -1,0 +1,83 @@
+.data-grid-container {
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  max-height: calc(100vh - 250px);
+}
+
+.data-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.data-grid th {
+  background-color: var(--bg-surface);
+  padding: 10px 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 2px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.data-grid td {
+  padding: 0;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.data-grid td.readonly {
+  background-color: #0d1117;
+  color: var(--text-secondary);
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
+.grid-cell-input {
+  width: 100%;
+  height: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+  display: block;
+}
+
+.grid-cell-input[type="number"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-cell-input:focus {
+  background-color: var(--accent-glow);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  z-index: 1;
+  position: relative;
+}
+
+.data-grid tr:hover td:not(.readonly) {
+  background-color: var(--bg-hover);
+}
+
+.grid-row-number {
+  width: 50px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  background-color: var(--bg-surface);
+}
+
+.grid-actions {
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}

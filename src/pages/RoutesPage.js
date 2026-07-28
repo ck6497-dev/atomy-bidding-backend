@@ -1,0 +1,176 @@
+import { getRoutes, saveRoutes, addRoute, updateRoute, deleteRoute, generateId } from '../store.js';
+import { showModal, closeModal } from '../components/Modal.js';
+import { showToast } from '../components/Toast.js';
+import { parseCSV, generateCSV, downloadCSV, readFileAsText } from '../utils/csv.js';
+
+export function renderRoutesPage(container) {
+  function render() {
+    const routes = getRoutes();
+    
+    container.innerHTML = `
+      <div class="page-header">
+        <h2>🗺️ 노선 관리</h2>
+        <div class="header-actions">
+          <button id="btn-add-route" class="btn btn-primary">노선 추가</button>
+          <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
+          <button id="btn-upload-csv" class="btn btn-outline">CSV 업로드</button>
+          <button id="btn-download-csv" class="btn btn-outline">CSV 다운로드</button>
+        </div>
+      </div>
+      
+      <div class="card table-container">
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>국가</th>
+              <th>POD</th>
+              <th>담당자</th>
+              <th>액션</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${routes.length > 0 ? routes.map(route => `
+              <tr>
+                <td>${route.no}</td>
+                <td>${route.country}</td>
+                <td>${route.pod}</td>
+                <td>${route.manager}</td>
+                <td>
+                  <button class="btn btn-sm btn-outline btn-edit" data-id="${route.id}">편집</button>
+                  <button class="btn btn-sm btn-danger btn-delete" data-id="${route.id}">삭제</button>
+                </td>
+              </tr>
+            `).join('') : `<tr><td colspan="5" style="text-align:center;">등록된 노선이 없습니다.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    // Events
+    container.querySelector('#btn-add-route').addEventListener('click', () => {
+      openRouteModal();
+    });
+
+    container.querySelector('#btn-upload-csv').addEventListener('click', () => {
+      container.querySelector('#csv-upload-input').click();
+    });
+
+    container.querySelector('#csv-upload-input').addEventListener('change', async (e) => {
+      if (e.target.files.length > 0) {
+        try {
+          const file = e.target.files[0];
+          const text = await readFileAsText(file);
+          const data = parseCSV(text);
+          if (data && data.length > 0) {
+            data.forEach(row => {
+              if (row['No'] && row['국가'] && row['POD']) {
+                addRoute({
+                  no: row['No'],
+                  country: row['국가'],
+                  pod: row['POD'],
+                  manager: row['담당자'] || ''
+                });
+              }
+            });
+            showToast('CSV 업로드 완료');
+            render();
+          }
+        } catch (err) {
+          showToast('CSV 처리 중 오류 발생', 'error');
+        }
+      }
+      e.target.value = ''; // Reset
+    });
+
+    container.querySelector('#btn-download-csv').addEventListener('click', () => {
+      const routes = getRoutes();
+      const exportData = routes.map(r => ({
+        No: r.no,
+        국가: r.country,
+        POD: r.pod,
+        담당자: r.manager
+      }));
+      const csvContent = generateCSV(exportData);
+      downloadCSV(csvContent, 'routes.csv');
+    });
+
+    container.querySelectorAll('.btn-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.dataset.id;
+        const route = getRoutes().find(r => r.id === id);
+        if (route) openRouteModal(route);
+      });
+    });
+
+    container.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.dataset.id;
+        if (confirm('정말로 이 노선을 삭제하시겠습니까?')) {
+          deleteRoute(id);
+          showToast('삭제되었습니다.');
+          render();
+        }
+      });
+    });
+  }
+
+  function openRouteModal(route = null) {
+    const isEdit = !!route;
+    const content = `
+      <form id="route-form">
+        <div class="form-group">
+          <label>No</label>
+          <input type="text" id="route-no" class="form-input" value="${route ? route.no : ''}" required>
+        </div>
+        <div class="form-group">
+          <label>국가</label>
+          <input type="text" id="route-country" class="form-input" value="${route ? route.country : ''}" required>
+        </div>
+        <div class="form-group">
+          <label>POD</label>
+          <input type="text" id="route-pod" class="form-input" value="${route ? route.pod : ''}" required>
+        </div>
+        <div class="form-group">
+          <label>담당자</label>
+          <input type="text" id="route-manager" class="form-input" value="${route ? route.manager : ''}">
+        </div>
+        <div class="modal-footer" style="margin-top: 1rem; text-align: right;">
+          <button type="button" class="btn btn-outline" id="btn-cancel-route">취소</button>
+          <button type="submit" class="btn btn-primary">저장</button>
+        </div>
+      </form>
+    `;
+
+    showModal({
+      title: isEdit ? '노선 편집' : '노선 추가',
+      content: content
+    });
+
+    document.getElementById('btn-cancel-route').addEventListener('click', () => {
+      closeModal();
+    });
+
+    document.getElementById('route-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const routeData = {
+        no: document.getElementById('route-no').value,
+        country: document.getElementById('route-country').value,
+        pod: document.getElementById('route-pod').value,
+        manager: document.getElementById('route-manager').value
+      };
+
+      if (isEdit) {
+        updateRoute(route.id, routeData);
+        showToast('노선이 수정되었습니다.');
+      } else {
+        addRoute(routeData);
+        showToast('노선이 추가되었습니다.');
+      }
+      closeModal();
+      render();
+    });
+  }
+
+  render();
+}

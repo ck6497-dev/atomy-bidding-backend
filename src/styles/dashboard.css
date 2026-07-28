@@ -1,0 +1,150 @@
+.dashboard-table-container {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.dashboard-table th {
+  background-color: var(--bg-surface);
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  border-bottom: 2px solid var(--border-color);
+  z-index: 10;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 열 너비 고정 (퍼센트 기반) */
+.dashboard-table th:nth-child(1) { width: 5%; }    /* No */
+.dashboard-table th:nth-child(2) { width: 10%; }   /* 국가 */
+.dashboard-table th:nth-child(3) { width: 14%; }   /* POD */
+.dashboard-table th:nth-child(4) { width: 16%; }   /* 포워더명 */
+.dashboard-table th:nth-child(5),
+.dashboard-table th:nth-child(6),
+.dashboard-table th:nth-child(7) { width: 7%; border-right: 1px solid var(--border-color); }
+.dashboard-table th:nth-child(8) { width: 34%; }   /* REMARK */
+
+.dashboard-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-group-cell {
+  background-color: var(--bg-secondary);
+  font-weight: 600;
+  border-right: none;
+  vertical-align: top !important;
+  padding-top: 16px !important;
+}
+
+.rate-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  border-right: 1px solid var(--border-color);
+}
+
+.forwarder-name-cell {
+  font-weight: 500;
+  color: var(--text-primary);
+  border-right: 2px solid var(--border-light) !important;
+}
+
+.dashboard-table th:nth-child(4) {
+  border-right: 2px solid var(--border-light) !important;
+}
+
+.dashboard-table th:nth-child(7) {
+  border-right: 1px solid var(--border-color) !important;
+}
+
+.remark-cell {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  position: relative;
+  overflow: visible !important;
+}
+
+.remark-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.remark-hover-card {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 250px;
+  max-width: 400px;
+  padding: 12px 16px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  z-index: 100;
+  line-height: 1.5;
+}
+
+.remark-hover-card::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 20px;
+  border: 6px solid transparent;
+  border-top-color: var(--border-light);
+}
+
+.remark-text:hover .remark-hover-card {
+  display: block;
+}
+
+.dashboard-table tbody tr:hover td:not(.route-group-cell) {
+  background-color: var(--bg-hover);
+  transition: background-color 0.2s;
+}
+
+.route-separator {
+  border-top: 2px solid var(--border-light) !important;
+}
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+}
