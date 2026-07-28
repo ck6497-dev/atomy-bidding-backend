@@ -56,11 +56,11 @@ async function initDB() {
       );
     `);
 
-    // 슈퍼 관리자 초기 계정 생성 (ck6497@atomypark.com / admin123!)
+    // 슈퍼 관리자 초기 계정 생성 (ck6497@atomypark.com)
     const superAdminEmail = 'ck6497@atomypark.com';
     const checkAdmin = await client.query('SELECT * FROM users WHERE email = $1', [superAdminEmail]);
     if (checkAdmin.rows.length === 0) {
-      const defaultPassword = 'admin123!';
+      const defaultPassword = process.env.SUPER_ADMIN_PASSWORD || 'admin123!';
       const hash = await bcrypt.hash(defaultPassword, 10);
       await client.query(
         'INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, $3, $4)',
