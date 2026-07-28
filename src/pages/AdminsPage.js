@@ -24,7 +24,7 @@ export async function renderAdminsPage(container) {
           <div class="form-group">
             <label>팀원 이메일</label>
             <input type="email" id="new-admin-email" class="form-input" placeholder="team@atomypark.com" required>
-            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">이 팀원은 최초 로그인 시 비밀번호를 설정하게 됩니다.</small>
+            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">초기 비밀번호는 <b>123qwe!@#</b> 로 고정됩니다. 최초 로그인 시 변경하게 됩니다.</small>
           </div>
           <div id="add-admin-error" style="color: #ef4444; margin-top: 1rem; display: none;"></div>
         </div>

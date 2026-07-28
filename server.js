@@ -152,15 +152,6 @@ app.post('/api/login', async (req, res) => {
 
     const user = result.rows[0];
     
-    // 포워더의 경우 아직 비밀번호를 설정하지 않은 최초 접속 상태 처리
-    if (!user.password_hash && user.is_first_login) {
-        return res.status(200).json({ 
-            require_password_setup: true, 
-            email: user.email, 
-            message: '최초 로그인입니다. 비밀번호를 설정해 주세요.' 
-        });
-    }
-
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) return res.status(401).json({ error: '비밀번호가 일치하지 않습니다.' });
 
@@ -219,9 +210,11 @@ app.post('/api/admins', authenticateToken, requireSuperAdmin, async (req, res) =
   if (!email) return res.status(400).json({ error: '이메일을 입력해주세요.' });
 
   try {
+    const defaultPassword = '123qwe!@#';
+    const hash = await bcrypt.hash(defaultPassword, 10);
     await pool.query(
-      "INSERT INTO users (email, role, is_first_login) VALUES ($1, 'admin', true)",
-      [email]
+      "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'admin', true)",
+      [email, hash]
     );
     res.json({ message: '관리자 계정이 추가되었습니다.' });
   } catch (error) {
