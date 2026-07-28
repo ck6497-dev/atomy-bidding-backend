@@ -210,7 +210,7 @@ app.post('/api/admins', authenticateToken, requireSuperAdmin, async (req, res) =
   if (!email) return res.status(400).json({ error: '이메일을 입력해주세요.' });
 
   try {
-    const defaultPassword = '123qwe!@#';
+    const defaultPassword = process.env.DEFAULT_INITIAL_PASSWORD || '123qwe!@#';
     const hash = await bcrypt.hash(defaultPassword, 10);
     await pool.query(
       "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'admin', true)",
