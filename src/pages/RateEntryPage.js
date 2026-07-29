@@ -264,8 +264,11 @@ export async function renderRateEntryPage(container) {
         }
 
         // === 저장 ===
-        for (const row of gridData) {
-          await saveRate({
+        saveBtn.disabled = true;
+        saveBtn.innerText = '저장 중...';
+
+        try {
+          const ratesToSave = gridData.map(row => ({
             biddingId: bidding.id,
             routeId: row.id,
             forwarderId: forwarderId,
@@ -273,14 +276,20 @@ export async function renderRateEntryPage(container) {
             rate40ft: row.rate40ft === '' ? null : Number(row.rate40ft),
             transitTime: row.transitTime === '' ? null : Number(row.transitTime),
             remark: row.remark
-          });
-        }
+          }));
 
-        isEditing = false;
-        hasChanges = false;
-        editGridData = null;
-        showToast('운임이 저장되었습니다 ✓');
-        await render();
+          await saveRates(ratesToSave);
+
+          isEditing = false;
+          hasChanges = false;
+          editGridData = null;
+          showToast('운임이 저장되었습니다 ✓');
+          await render();
+        } catch (err) {
+          showToast('저장 실패: ' + err.message, 'error');
+          saveBtn.disabled = false;
+          saveBtn.innerText = '💾 저장';
+        }
       });
     }
 

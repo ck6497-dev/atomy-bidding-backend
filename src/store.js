@@ -195,16 +195,35 @@ export async function getRatesByForwarder(biddingId, forwarderId) {
 }
 
 export async function saveRate(rate) {
+  const payload = {
+    bidding_id: rate.bidding_id || rate.biddingId,
+    forwarder_id: rate.forwarder_id || rate.forwarderId,
+    route_id: rate.route_id || rate.routeId,
+    rate_20ft: rate.rate_20ft !== undefined ? rate.rate_20ft : rate.rate20ft,
+    rate_40ft: rate.rate_40ft !== undefined ? rate.rate_40ft : rate.rate40ft,
+    transit_time: rate.transit_time !== undefined ? rate.transit_time : rate.transitTime,
+    remark: rate.remark
+  };
   return apiFetch('/rates', {
     method: 'POST',
-    body: JSON.stringify(rate)
+    body: JSON.stringify({ rates: [payload] })
   });
 }
 
 export async function saveRates(rates) {
+  const ratesArray = Array.isArray(rates) ? rates : [rates];
+  const payload = ratesArray.map(rate => ({
+    bidding_id: rate.bidding_id || rate.biddingId,
+    forwarder_id: rate.forwarder_id || rate.forwarderId,
+    route_id: rate.route_id || rate.routeId,
+    rate_20ft: rate.rate_20ft !== undefined ? rate.rate_20ft : rate.rate20ft,
+    rate_40ft: rate.rate_40ft !== undefined ? rate.rate_40ft : rate.rate40ft,
+    transit_time: rate.transit_time !== undefined ? rate.transit_time : rate.transitTime,
+    remark: rate.remark
+  }));
   return apiFetch('/rates', {
     method: 'POST',
-    body: JSON.stringify(rates)
+    body: JSON.stringify({ rates: payload })
   });
 }
 

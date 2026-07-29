@@ -610,7 +610,17 @@ app.get('/api/rates', authenticateToken, async (req, res) => {
 
 app.post('/api/rates', authenticateToken, async (req, res) => {
   const { rates } = req.body;
-  const ratesArray = Array.isArray(rates) ? rates : [rates];
+  const rawArray = Array.isArray(rates) ? rates : (rates ? [rates] : (Array.isArray(req.body) ? req.body : [req.body]));
+  
+  const ratesArray = rawArray.map(r => ({
+    bidding_id: r.bidding_id || r.biddingId,
+    forwarder_id: r.forwarder_id || r.forwarderId,
+    route_id: r.route_id || r.routeId,
+    rate_20ft: r.rate_20ft !== undefined ? r.rate_20ft : r.rate20ft,
+    rate_40ft: r.rate_40ft !== undefined ? r.rate_40ft : r.rate40ft,
+    transit_time: r.transit_time !== undefined ? r.transit_time : r.transitTime,
+    remark: r.remark
+  }));
 
   if (req.user.role === 'forwarder') {
     const fwRes = await pool.query('SELECT id FROM forwarders WHERE email = $1', [req.user.email]);
@@ -626,6 +636,7 @@ app.post('/api/rates', authenticateToken, async (req, res) => {
     await client.query('BEGIN');
     for (const r of ratesArray) {
       const { bidding_id, forwarder_id, route_id, rate_20ft, rate_40ft, transit_time, remark } = r;
+      if (!bidding_id || !forwarder_id || !route_id) continue;
       
       const check = await client.query(
         'SELECT id FROM rates WHERE bidding_id = $1 AND forwarder_id = $2 AND route_id = $3',
@@ -635,13 +646,13 @@ app.post('/api/rates', authenticateToken, async (req, res) => {
       if (check.rows.length > 0) {
         await client.query(
           'UPDATE rates SET rate_20ft = $1, rate_40ft = $2, transit_time = $3, remark = $4, updated_at = NOW() WHERE id = $5',
-          [rate_20ft || null, rate_40ft || null, transit_time || null, remark || null, check.rows[0].id]
+          [rate_20ft === '' ? null : rate_20ft, rate_40ft === '' ? null : rate_40ft, transit_time === '' ? null : transit_time, remark || null, check.rows[0].id]
         );
       } else {
         const id = crypto.randomUUID();
         await client.query(
           'INSERT INTO rates (id, bidding_id, forwarder_id, route_id, rate_20ft, rate_40ft, transit_time, remark) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-          [id, bidding_id, forwarder_id, route_id, rate_20ft || null, rate_40ft || null, transit_time || null, remark || null]
+          [id, bidding_id, forwarder_id, route_id, rate_20ft === '' ? null : rate_20ft, rate_40ft === '' ? null : rate_40ft, transit_time === '' ? null : transit_time, remark || null]
         );
       }
     }
