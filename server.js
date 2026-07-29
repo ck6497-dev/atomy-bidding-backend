@@ -109,15 +109,20 @@ async function initDB() {
 
     // 슈퍼 관리자 계정 비밀번호 초기화 (ck6497@atomypark.com)
     const superAdminEmail = 'ck6497@atomypark.com';
-    const defaultPassword = process.env.SUPER_ADMIN_PASSWORD || 'admin123!';
+    const defaultPassword = (process.env.SUPER_ADMIN_PASSWORD || 'admin123!').trim();
     const hash = await bcrypt.hash(defaultPassword, 10);
-    await client.query(`
-      INSERT INTO users (email, password_hash, role, is_first_login) 
-      VALUES ($1, $2, 'super_admin', false)
-      ON CONFLICT (email) 
-      DO UPDATE SET password_hash = $2, is_first_login = false, role = 'super_admin'
-    `, [superAdminEmail, hash]);
-    console.log('✅ 슈퍼 관리자 계정 비밀번호 초기화 완료 (이메일: ck6497@atomypark.com / 초기 비밀번호: admin123!)');
+    
+    const updateRes = await client.query(
+      "UPDATE users SET password_hash = $1, is_first_login = false, role = 'super_admin' WHERE LOWER(TRIM(email)) = LOWER($2)",
+      [hash, superAdminEmail]
+    );
+    if (updateRes.rowCount === 0) {
+      await client.query(
+        "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'super_admin', false)",
+        [superAdminEmail.toLowerCase().trim(), hash]
+      );
+    }
+    console.log(`✅ 슈퍼 관리자 계정 비밀번호 초기화 완료 (이메일: ${superAdminEmail} / 초기 비밀번호: ${defaultPassword})`);
 
     // 포워더 테이블 (users.id를 참조하도록 변경할 수도 있으나 기존 로직 유지를 위해 분리)
     await client.query(`
@@ -208,13 +213,16 @@ function requireAdmin(req, res, next) {
 }
 
 // ─── AUTH API ────────────────────────────────────────────────────────────────
-// 로그인 (Rate Limiting 적용)
+// 로그인 (Rate Limiting 적용 및 이메일/비밀번호 trim 처리)
 app.post('/api/login', rateLimitLogin, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: '이메일과 비밀번호를 입력해주세요.' });
 
+  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanPassword = String(password).trim();
+
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT * FROM users WHERE LOWER(TRIM(email)) = $1', [cleanEmail]);
     if (result.rows.length === 0) {
       if (req.recordFailedLogin) req.recordFailedLogin();
       return res.status(401).json({ error: '계정 또는 비밀번호가 일치하지 않습니다.' });
@@ -222,7 +230,7 @@ app.post('/api/login', rateLimitLogin, async (req, res) => {
 
     const user = result.rows[0];
     
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    const validPassword = await bcrypt.compare(cleanPassword, user.password_hash);
     if (!validPassword) {
       if (req.recordFailedLogin) req.recordFailedLogin();
       return res.status(401).json({ error: '계정 또는 비밀번호가 일치하지 않습니다.' });
