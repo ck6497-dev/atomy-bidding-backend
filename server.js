@@ -107,18 +107,17 @@ async function initDB() {
       );
     `);
 
-    // 슈퍼 관리자 초기 계정 생성 (ck6497@atomypark.com)
+    // 슈퍼 관리자 계정 비밀번호 초기화 (ck6497@atomypark.com)
     const superAdminEmail = 'ck6497@atomypark.com';
-    const checkAdmin = await client.query('SELECT * FROM users WHERE email = $1', [superAdminEmail]);
-    if (checkAdmin.rows.length === 0) {
-      const defaultPassword = process.env.SUPER_ADMIN_PASSWORD || 'admin123!';
-      const hash = await bcrypt.hash(defaultPassword, 10);
-      await client.query(
-        'INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, $3, $4)',
-        [superAdminEmail, hash, 'super_admin', true]
-      );
-      console.log('✅ 슈퍼 관리자 초기 계정 생성 완료:', superAdminEmail);
-    }
+    const defaultPassword = process.env.SUPER_ADMIN_PASSWORD || 'admin123!';
+    const hash = await bcrypt.hash(defaultPassword, 10);
+    await client.query(`
+      INSERT INTO users (email, password_hash, role, is_first_login) 
+      VALUES ($1, $2, 'super_admin', false)
+      ON CONFLICT (email) 
+      DO UPDATE SET password_hash = $2, is_first_login = false, role = 'super_admin'
+    `, [superAdminEmail, hash]);
+    console.log('✅ 슈퍼 관리자 계정 비밀번호 초기화 완료 (이메일: ck6497@atomypark.com / 초기 비밀번호: admin123!)');
 
     // 포워더 테이블 (users.id를 참조하도록 변경할 수도 있으나 기존 로직 유지를 위해 분리)
     await client.query(`
