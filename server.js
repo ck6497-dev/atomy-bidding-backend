@@ -42,6 +42,27 @@ const pool = new Pool({
 });
 
 // ─── DB 초기화: 테이블 자동 생성 ─────────────────────────────────────────────
+// ─── 백그라운드 입찰 마감시한 자동 체크 ─────────────────────────────────────────
+async function checkAndCloseBiddings() {
+  try {
+    const result = await pool.query(`
+      UPDATE biddings 
+      SET status = 'closed', closed_at = NOW() 
+      WHERE status = 'active' 
+        AND deadline IS NOT NULL 
+        AND (deadline + INTERVAL '1 day' - INTERVAL '1 millisecond') < NOW()
+      RETURNING id, title;
+    `);
+    if (result.rows.length > 0) {
+      result.rows.forEach(b => {
+        console.log(`⏰ [자동 마감] 입찰 '${b.title}'(ID: ${b.id}) 마감 처리되었습니다.`);
+      });
+    }
+  } catch (err) {
+    console.error('❌ 자동 마감 체크 실패:', err);
+  }
+}
+
 async function initDB() {
   const client = await pool.connect();
   try {
@@ -100,8 +121,11 @@ async function initDB() {
         status VARCHAR(20) NOT NULL DEFAULT 'active',
         created_at TIMESTAMPTZ DEFAULT NOW(),
         deadline DATE,
+        closed_at TIMESTAMPTZ,
         submitted_forwarders JSONB DEFAULT '[]'
       );
+
+      ALTER TABLE biddings ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
 
       CREATE TABLE IF NOT EXISTS rates (
         id VARCHAR(50) PRIMARY KEY,
@@ -116,6 +140,10 @@ async function initDB() {
       );
     `);
     console.log('✅ DB 초기화 완료 - 모든 테이블이 준비되었습니다.');
+    
+    // DB 초기화 후 1회 마감 체크 및 주기적(1분) 자동 체크 시작
+    await checkAndCloseBiddings();
+    setInterval(checkAndCloseBiddings, 60000);
   } catch (err) {
     console.error('❌ DB 초기화 실패:', err);
   } finally {
