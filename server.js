@@ -386,31 +386,35 @@ app.post('/api/forwarders', authenticateToken, requireAdmin, async (req, res) =>
 app.put('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { name, email, assigned_routes } = req.body;
-  if (!name) return res.status(400).json({ error: '이름을 입력해주세요.' });
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const oldForwarder = await client.query('SELECT * FROM forwarders WHERE id = $1', [id]);
     if (oldForwarder.rows.length === 0) throw new Error('포워더를 찾을 수 없습니다.');
-    const oldEmail = oldForwarder.rows[0].email;
-    const routesJson = JSON.stringify(assigned_routes || []);
+    
+    const old = oldForwarder.rows[0];
+    const newName = name !== undefined ? name : old.name;
+    const newEmail = email !== undefined ? email : old.email;
+    const newRoutes = assigned_routes !== undefined ? assigned_routes : old.assigned_routes;
+    const oldEmail = old.email;
+    const routesJson = JSON.stringify(newRoutes || []);
     
     await client.query(
       'UPDATE forwarders SET name = $1, email = $2, assigned_routes = $3 WHERE id = $4',
-      [name, email || null, routesJson, id]
+      [newName, newEmail || null, routesJson, id]
     );
 
-    if (oldEmail !== email) {
+    if (oldEmail !== newEmail) {
       if (oldEmail) {
         await client.query('DELETE FROM users WHERE email = $1 AND role = $2', [oldEmail, 'forwarder']);
       }
-      if (email) {
+      if (newEmail) {
         const defaultPassword = process.env.DEFAULT_INITIAL_PASSWORD || '123qwe!@#';
         const hash = await bcrypt.hash(defaultPassword, 10);
         await client.query(
           "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'forwarder', true) ON CONFLICT (email) DO NOTHING",
-          [email, hash]
+          [newEmail, hash]
         );
       }
     }
