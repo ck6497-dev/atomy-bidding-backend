@@ -247,6 +247,13 @@ export async function saveRates(rates) {
   });
 }
 
+export async function sendEmailApi(to, subject, html) {
+  return apiFetch('/send-email', {
+    method: 'POST',
+    body: JSON.stringify({ to, subject, html })
+  });
+}
+
 // ─── Session (로컬 전용 - JWT와 함께 사용) ───────────────────────────────────
 export function getSession() {
   const data = localStorage.getItem('atomy_session');

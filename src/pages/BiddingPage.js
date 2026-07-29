@@ -1,4 +1,4 @@
-import { getBiddings, addBidding, updateBidding, getActiveBidding, getForwarders, getRoutes, getAllRates, revokeSubmission, reopenBidding, isForwarderSubmitted, getToken } from '../store.js';
+import { getBiddings, addBidding, updateBidding, getActiveBidding, getForwarders, getRoutes, getAllRates, revokeSubmission, reopenBidding, isForwarderSubmitted, getToken, sendEmailApi } from '../store.js';
 import { showModal, closeModal } from '../components/Modal.js';
 import { showToast } from '../components/Toast.js';
 import { formatDate } from '../utils/format.js';
@@ -326,39 +326,31 @@ export async function renderBiddingPage(container) {
       btn.innerText = '발송 중...';
 
       try {
-        const token = getToken();
         const emailPromises = forwardersWithEmail.map(f => 
-          fetch('https://atomy-bidding-backend.onrender.com/api/send-email', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              to: f.email,
-              subject: `[Atomy] 신규 입찰 안내: ${biddingData.title}`,
-              html: `
-                <div style="font-family: sans-serif; padding: 20px;">
-                  <h2>Atomy 신규 해상 스팟 운임 입찰 안내</h2>
-                  <p>안녕하세요 ${f.name}님,</p>
-                  <p>새로운 입찰(<strong>${biddingData.title}</strong>)이 시작되었습니다.</p>
-                  <p><strong>마감 시한:</strong> ${biddingData.deadline} 23:59 까지</p>
-                  <p>아래 링크를 통해 운임을 입력해 주시기 바랍니다.</p>
-                  <a href="http://localhost:3000" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; margin-top: 10px;">운임 입력하기</a>
-                </div>
-              `
-            })
-          })
+          sendEmailApi(
+            f.email,
+            `[Atomy] 신규 입찰 안내: ${biddingData.title}`,
+            `
+              <div style="font-family: sans-serif; padding: 20px;">
+                <h2>Atomy 신규 해상 스팟 운임 입찰 안내</h2>
+                <p>안녕하세요 ${f.name}님,</p>
+                <p>새로운 입찰(<strong>${biddingData.title}</strong>)이 시작되었습니다.</p>
+                <p><strong>마감 시한:</strong> ${biddingData.deadline} 23:59 까지</p>
+                <p>아래 링크를 통해 운임을 입력해 주시기 바랍니다.</p>
+                <a href="${window.location.origin}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; margin-top: 10px;">운임 입력하기</a>
+              </div>
+            `
+          )
         );
 
         await Promise.all(emailPromises);
 
         const result = await addBidding(biddingData);
-        if (result.error) throw new Error(result.error);
+        if (result && result.error) throw new Error(result.error);
         showToast('메일이 성공적으로 발송되었으며, 새 입찰이 시작되었습니다.');
       } catch (error) {
         console.error('메일 발송 실패:', error);
-        alert('메일 발송 과정에서 오류가 발생했습니다. (입찰은 생성됩니다)');
+        alert(`메일 발송 중 오류가 발생했습니다: ${error.message}\n(입찰은 생성됩니다)`);
         await addBidding(biddingData);
         showToast('새 입찰이 시작되었습니다.');
       } finally {
