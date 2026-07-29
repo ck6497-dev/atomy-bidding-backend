@@ -582,15 +582,30 @@ app.post('/api/biddings', authenticateToken, requireAdmin, async (req, res) => {
 
 app.put('/api/biddings/:id', authenticateToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { title, deadline, status } = req.body;
+  const { title, deadline, status, closedAt, closed_at } = req.body;
   try {
+    const oldRes = await pool.query('SELECT * FROM biddings WHERE id = $1', [id]);
+    if (oldRes.rows.length === 0) return res.status(404).json({ error: '입찰 정보를 찾을 수 없습니다.' });
+    
+    const old = oldRes.rows[0];
+    const newTitle = title !== undefined ? title : old.title;
+    const newDeadline = deadline !== undefined ? deadline : old.deadline;
+    const newStatus = status !== undefined ? status : old.status;
+    
+    let newClosedAt = old.closed_at;
+    if (closedAt !== undefined) newClosedAt = closedAt;
+    if (closed_at !== undefined) newClosedAt = closed_at;
+    if (newStatus === 'closed' && !newClosedAt) newClosedAt = new Date().toISOString();
+    if (newStatus === 'active') newClosedAt = null;
+
     await pool.query(
-      'UPDATE biddings SET title = $1, deadline = $2, status = $3 WHERE id = $4',
-      [title, deadline || null, status, id]
+      'UPDATE biddings SET title = $1, deadline = $2, status = $3, closed_at = $4 WHERE id = $5',
+      [newTitle, newDeadline, newStatus, newClosedAt, id]
     );
     res.json({ message: '입찰이 수정되었습니다.' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('입찰 수정 에러:', error);
+    res.status(500).json({ error: '입찰 수정 중 오류가 발생했습니다.' });
   }
 });
 
