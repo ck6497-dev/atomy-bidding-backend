@@ -386,7 +386,7 @@ app.delete('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, r
 // ─── 노선 API ────────────────────────────────────────────────────────────────
 app.get('/api/routes', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM routes');
+    const result = await pool.query("SELECT * FROM routes ORDER BY CASE WHEN no ~ '^[0-9]+$' THEN no::integer ELSE 999999 END, no");
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });

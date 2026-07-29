@@ -28,7 +28,11 @@ async function apiFetch(path, options = {}) {
     window.location.hash = '#/login';
     throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
   }
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || '요청 처리 중 오류가 발생했습니다.');
+  }
+  return data;
 }
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
