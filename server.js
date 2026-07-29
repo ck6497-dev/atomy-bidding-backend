@@ -12,14 +12,43 @@ dotenv.config();
 const { Pool } = pg;
 const app = express();
 const port = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-for-jwt';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️ WARNING: JWT_SECRET가 .env에 설정되지 않아 임시 서명키를 동적으로 생성했습니다.');
+}
+
+// ─── 간단한 이메일/IP 로그인 시도 횟수 제한 (Rate Limiter) ──────────────────────
+const loginAttempts = new Map();
+
+function rateLimitLogin(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15분
+  const maxAttempts = 10;
+
+  const userAttempts = loginAttempts.get(ip) || [];
+  const validAttempts = userAttempts.filter(timestamp => now - timestamp < windowMs);
+
+  if (validAttempts.length >= maxAttempts) {
+    return res.status(429).json({ error: '시도 횟수가 너무 많습니다. 15분 후 다시 시도해 주세요.' });
+  }
+
+  req.recordFailedLogin = () => {
+    validAttempts.push(now);
+    loginAttempts.set(ip, validAttempts);
+  };
+  next();
+}
 
 // ─── CORS 설정 ─────────────────────────────────────────────────────────────
-const allowedOrigins = [
+const defaultAllowedOrigins = [
   'http://localhost:3000',
   'http://localhost:4173',
   'https://atomy-bidding-backend.onrender.com'
 ];
+const envOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+const allowedOrigins = [...defaultAllowedOrigins, ...envOrigins];
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -180,19 +209,25 @@ function requireAdmin(req, res, next) {
 }
 
 // ─── AUTH API ────────────────────────────────────────────────────────────────
-// 로그인
-app.post('/api/login', async (req, res) => {
+// 로그인 (Rate Limiting 적용)
+app.post('/api/login', rateLimitLogin, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: '이메일과 비밀번호를 입력해주세요.' });
 
   try {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length === 0) return res.status(401).json({ error: '계정을 찾을 수 없습니다.' });
+    if (result.rows.length === 0) {
+      if (req.recordFailedLogin) req.recordFailedLogin();
+      return res.status(401).json({ error: '계정 또는 비밀번호가 일치하지 않습니다.' });
+    }
 
     const user = result.rows[0];
     
     const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) return res.status(401).json({ error: '비밀번호가 일치하지 않습니다.' });
+    if (!validPassword) {
+      if (req.recordFailedLogin) req.recordFailedLogin();
+      return res.status(401).json({ error: '계정 또는 비밀번호가 일치하지 않습니다.' });
+    }
 
     if (user.is_first_login) {
       return res.status(200).json({ 
@@ -204,14 +239,14 @@ app.post('/api/login', async (req, res) => {
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
     const userInfo = { id: user.id, email: user.email, role: user.role };
-    // 포워더인 경우 forwarderId도 조회
     if (user.role === 'forwarder') {
       const fwResult = await pool.query('SELECT id FROM forwarders WHERE email = $1', [user.email]);
       if (fwResult.rows.length > 0) userInfo.forwarderId = fwResult.rows[0].id;
     }
     res.json({ token, user: userInfo });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('로그인 에러:', error);
+    res.status(500).json({ error: '로그인 처리 중 오류가 발생했습니다.' });
   }
 });
 
@@ -554,6 +589,15 @@ app.get('/api/rates', authenticateToken, async (req, res) => {
 app.post('/api/rates', authenticateToken, async (req, res) => {
   const { rates } = req.body;
   const ratesArray = Array.isArray(rates) ? rates : [rates];
+
+  if (req.user.role === 'forwarder') {
+    const fwRes = await pool.query('SELECT id FROM forwarders WHERE email = $1', [req.user.email]);
+    const myFwId = fwRes.rows.length > 0 ? fwRes.rows[0].id : null;
+    const isUnauthorized = ratesArray.some(r => r.forwarder_id !== myFwId);
+    if (isUnauthorized) {
+      return res.status(403).json({ error: '본인 포워더 계정의 운임만 입력/수정할 수 있습니다.' });
+    }
+  }
   
   const client = await pool.connect();
   try {
@@ -583,7 +627,8 @@ app.post('/api/rates', authenticateToken, async (req, res) => {
     res.json({ message: '운임이 저장되었습니다.' });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: error.message });
+    console.error('운임 저장 에러:', error);
+    res.status(500).json({ error: '운임 저장 중 오류가 발생했습니다.' });
   } finally {
     client.release();
   }
@@ -592,6 +637,14 @@ app.post('/api/rates', authenticateToken, async (req, res) => {
 app.post('/api/rates/submit', authenticateToken, async (req, res) => {
   const { biddingId, forwarderId } = req.body;
   if (!biddingId || !forwarderId) return res.status(400).json({ error: '필수 값이 누락되었습니다.' });
+
+  if (req.user.role === 'forwarder') {
+    const fwRes = await pool.query('SELECT id FROM forwarders WHERE email = $1', [req.user.email]);
+    const myFwId = fwRes.rows.length > 0 ? fwRes.rows[0].id : null;
+    if (forwarderId !== myFwId) {
+      return res.status(403).json({ error: '본인 포워더 계정만 최종 제출할 수 있습니다.' });
+    }
+  }
   
   const client = await pool.connect();
   try {
@@ -609,7 +662,8 @@ app.post('/api/rates/submit', authenticateToken, async (req, res) => {
     res.json({ message: '제출 완료' });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: error.message });
+    console.error('최종제출 에러:', error);
+    res.status(500).json({ error: '최종제출 중 오류가 발생했습니다.' });
   } finally {
     client.release();
   }
