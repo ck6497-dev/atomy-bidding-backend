@@ -117,7 +117,11 @@ export async function renderForwardersPage(container) {
 
   async function openAssignModal(forwarder) {
     const routes = await getRoutes();
-    const assigned = forwarder.assigned_routes || [];
+    let assigned = forwarder.assigned_routes || [];
+    if (typeof assigned === 'string') {
+      try { assigned = JSON.parse(assigned); } catch (e) { assigned = []; }
+    }
+    if (!Array.isArray(assigned)) assigned = [];
     
     let routesHtml = routes.map(route => `
       <div class="checkbox-item" style="padding: 0.5rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.5rem;">

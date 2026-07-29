@@ -342,8 +342,18 @@ app.post('/api/send-email', authenticateToken, async (req, res) => {
 // ─── 포워더 API ──────────────────────────────────────────────────────────────
 app.get('/api/forwarders', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM forwarders');
-    res.json(result.rows);
+    const result = await pool.query('SELECT * FROM forwarders ORDER BY name');
+    const rows = result.rows.map(row => {
+      let routes = row.assigned_routes;
+      if (typeof routes === 'string') {
+        try { routes = JSON.parse(routes); } catch (e) { routes = []; }
+      }
+      if (typeof routes === 'string') {
+        try { routes = JSON.parse(routes); } catch (e) { routes = []; }
+      }
+      return { ...row, assigned_routes: Array.isArray(routes) ? routes : [] };
+    });
+    res.json(rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -357,11 +367,11 @@ app.post('/api/forwarders', authenticateToken, requireAdmin, async (req, res) =>
   try {
     await client.query('BEGIN');
     const id = crypto.randomUUID();
-    const routesJson = JSON.stringify(assigned_routes || []);
+    const routesArray = Array.isArray(assigned_routes) ? assigned_routes : [];
     
     await client.query(
-      'INSERT INTO forwarders (id, name, email, assigned_routes) VALUES ($1, $2, $3, $4)',
-      [id, name, email || null, routesJson]
+      'INSERT INTO forwarders (id, name, email, assigned_routes) VALUES ($1, $2, $3, $4::jsonb)',
+      [id, name, email || null, JSON.stringify(routesArray)]
     );
 
     if (email) {
@@ -396,13 +406,21 @@ app.put('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, res)
     const old = oldForwarder.rows[0];
     const newName = name !== undefined ? name : old.name;
     const newEmail = email !== undefined ? email : old.email;
-    const newRoutes = assigned_routes !== undefined ? assigned_routes : old.assigned_routes;
+    
+    let newRoutes = old.assigned_routes;
+    if (assigned_routes !== undefined) {
+      newRoutes = assigned_routes;
+    }
+    if (typeof newRoutes === 'string') {
+      try { newRoutes = JSON.parse(newRoutes); } catch (e) {}
+    }
+    const routesArray = Array.isArray(newRoutes) ? newRoutes : [];
+
     const oldEmail = old.email;
-    const routesJson = JSON.stringify(newRoutes || []);
     
     await client.query(
-      'UPDATE forwarders SET name = $1, email = $2, assigned_routes = $3 WHERE id = $4',
-      [newName, newEmail || null, routesJson, id]
+      'UPDATE forwarders SET name = $1, email = $2, assigned_routes = $3::jsonb WHERE id = $4',
+      [newName, newEmail || null, JSON.stringify(routesArray), id]
     );
 
     if (oldEmail !== newEmail) {
