@@ -1,4 +1,4 @@
-import { getSession, getRoutes, getForwarders, getActiveBidding, getRatesByForwarder, saveRate, getBiddings, isForwarderSubmitted, submitForwarder } from '../store.js';
+import { getSession, getRoutes, getForwarders, getActiveBidding, getRatesByForwarder, saveRate, saveRates, getBiddings, isForwarderSubmitted, submitForwarder } from '../store.js';
 import { renderDataGrid } from '../components/DataGrid.js';
 import { showToast } from '../components/Toast.js';
 import { showModal } from '../components/Modal.js';
