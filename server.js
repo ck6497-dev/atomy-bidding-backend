@@ -90,6 +90,8 @@ async function initDB() {
         manager VARCHAR(100)
       );
 
+      ALTER TABLE routes ADD COLUMN IF NOT EXISTS manager VARCHAR(100);
+
       CREATE TABLE IF NOT EXISTS biddings (
         id VARCHAR(50) PRIMARY KEY,
         title VARCHAR(200) NOT NULL,
