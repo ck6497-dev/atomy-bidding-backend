@@ -617,9 +617,9 @@ app.get('/api/rates', authenticateToken, async (req, res) => {
 
 app.post('/api/rates', authenticateToken, async (req, res) => {
   const { rates } = req.body;
-  const rawArray = Array.isArray(rates) ? rates : (rates ? [rates] : (Array.isArray(req.body) ? req.body : [req.body]));
+  const rawArray = Array.isArray(rates) ? rates : (rates ? [rates] : (Array.isArray(req.body) ? req.body : []));
   
-  const ratesArray = rawArray.map(r => ({
+  const ratesArray = rawArray.filter(Boolean).map(r => ({
     bidding_id: r.bidding_id || r.biddingId,
     forwarder_id: r.forwarder_id || r.forwarderId,
     route_id: r.route_id || r.routeId,
@@ -632,7 +632,7 @@ app.post('/api/rates', authenticateToken, async (req, res) => {
   if (req.user.role === 'forwarder') {
     const fwRes = await pool.query('SELECT id FROM forwarders WHERE email = $1', [req.user.email]);
     const myFwId = fwRes.rows.length > 0 ? fwRes.rows[0].id : null;
-    const isUnauthorized = ratesArray.some(r => r.forwarder_id !== myFwId);
+    const isUnauthorized = ratesArray.some(r => !r || r.forwarder_id !== myFwId);
     if (isUnauthorized) {
       return res.status(403).json({ error: '본인 포워더 계정의 운임만 입력/수정할 수 있습니다.' });
     }
