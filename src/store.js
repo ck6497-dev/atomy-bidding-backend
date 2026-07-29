@@ -42,7 +42,17 @@ export async function loginApi(email, password) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   });
-  return res.json();
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    throw new Error('서버 응답을 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.');
+  }
+  if (!res.ok) {
+    throw new Error(data.error || `로그인 처리 실패 (${res.status})`);
+  }
+  return data;
 }
 
 export async function setPasswordApi(email, newPassword) {
@@ -51,7 +61,17 @@ export async function setPasswordApi(email, newPassword) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, newPassword })
   });
-  return res.json();
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    throw new Error('서버 응답을 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.');
+  }
+  if (!res.ok) {
+    throw new Error(data.error || `비밀번호 설정 실패 (${res.status})`);
+  }
+  return data;
 }
 
 // ─── Admin API ───────────────────────────────────────────────────────────────

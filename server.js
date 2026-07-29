@@ -25,13 +25,13 @@ function rateLimitLogin(req, res, next) {
   const ip = req.ip || req.connection.remoteAddress;
   const now = Date.now();
   const windowMs = 15 * 60 * 1000; // 15분
-  const maxAttempts = 10;
+  const maxAttempts = 30;
 
   const userAttempts = loginAttempts.get(ip) || [];
   const validAttempts = userAttempts.filter(timestamp => now - timestamp < windowMs);
 
   if (validAttempts.length >= maxAttempts) {
-    return res.status(429).json({ error: '시도 횟수가 너무 많습니다. 15분 후 다시 시도해 주세요.' });
+    return res.status(429).json({ error: '로그인 시도 횟수가 너무 많습니다. 15분 후 다시 시도해 주세요.' });
   }
 
   req.recordFailedLogin = () => {
