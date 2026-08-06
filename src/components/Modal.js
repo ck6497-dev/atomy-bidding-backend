@@ -1,6 +1,16 @@
-export function showModal({ title, content, onConfirm, onCancel, confirmText = '확인', cancelText = '취소' }) {
+export function showModal({ title, content, onConfirm, onCancel, confirmText = '확인', cancelText = '취소', showFooter = false }) {
   closeModal();
   
+  const hasCustomFooter = typeof content === 'string' && content.includes('modal-footer');
+  const shouldRenderFooter = (showFooter || onConfirm) && !hasCustomFooter;
+
+  const footerHtml = shouldRenderFooter ? `
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-cancel">${cancelText}</button>
+      ${onConfirm ? `<button class="btn btn-primary btn-confirm">${confirmText}</button>` : ''}
+    </div>
+  ` : '';
+
   const modalHtml = `
     <div class="modal-overlay">
       <div class="modal">
@@ -9,10 +19,7 @@ export function showModal({ title, content, onConfirm, onCancel, confirmText = '
           <button class="btn-icon btn-close">✕</button>
         </div>
         <div class="modal-body"></div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary btn-cancel">${cancelText}</button>
-          ${onConfirm ? `<button class="btn btn-primary btn-confirm">${confirmText}</button>` : ''}
-        </div>
+        ${footerHtml}
       </div>
     </div>
   `;
@@ -43,12 +50,17 @@ export function showModal({ title, content, onConfirm, onCancel, confirmText = '
     if (e.target === overlay) handleClose();
   });
   
-  btnClose.addEventListener('click', handleClose);
-  btnCancel.addEventListener('click', handleClose);
+  if (btnClose) btnClose.addEventListener('click', handleClose);
+  if (btnCancel) btnCancel.addEventListener('click', handleClose);
   
   if (btnConfirm && onConfirm) {
-    btnConfirm.addEventListener('click', () => {
-      onConfirm();
+    btnConfirm.addEventListener('click', async () => {
+      closeModal();
+      try {
+        await onConfirm();
+      } catch (err) {
+        console.error('Modal onConfirm error:', err);
+      }
     });
   }
   

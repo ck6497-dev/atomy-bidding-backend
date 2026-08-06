@@ -1,11 +1,20 @@
 import { getSession } from '../store.js';
 import { navigate, getCurrentRoute } from '../router.js';
 
+// C3 수정: 이전 hashchange 리스너 참조를 저장하여 재호출 시 제거
+let _previousHashChangeHandler = null;
+
 export function renderSidebar(container) {
   const session = getSession();
   if (!session) {
     container.innerHTML = '';
     return;
+  }
+  
+  // C3: 이전 리스너 제거
+  if (_previousHashChangeHandler) {
+    window.removeEventListener('hashchange', _previousHashChangeHandler);
+    _previousHashChangeHandler = null;
   }
   
   let menuItems = [];
@@ -66,5 +75,7 @@ export function renderSidebar(container) {
   
   updateActiveState();
   
+  // C3: 새 리스너를 등록하고 참조 저장
+  _previousHashChangeHandler = updateActiveState;
   window.addEventListener('hashchange', updateActiveState);
 }

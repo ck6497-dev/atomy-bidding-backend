@@ -14,21 +14,30 @@ export async function renderForwardersPage(container) {
         </div>
       </div>
       
-      <div class="card-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
-        ${forwarders.length > 0 ? forwarders.map(f => `
-          <div class="card forwarder-card" style="padding: 1.5rem; display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border-color);">
-            <div style="flex-grow: 1;">
-              <h3 style="margin-top: 0; margin-bottom: 0.5rem; color: var(--text-primary);">${f.name}</h3>
-              <p style="color: var(--text-secondary); margin-bottom: 0.25rem; font-size: 0.9rem;">📧 ${f.email || '<span style="color:var(--text-muted);">이메일 없음</span>'}</p>
-              <p style="color: var(--text-secondary); margin-bottom: 1rem;">지정된 노선 수: <strong style="color: var(--text-primary);">${f.assigned_routes ? f.assigned_routes.length : 0}</strong>개</p>
+      <div class="card-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem;">
+        ${forwarders.length > 0 ? forwarders.map(f => {
+          const emails = (f.email || '').split(/[\n,;]+/).map(e => e.trim()).filter(Boolean);
+          const emailDisplay = emails.length > 0
+            ? emails.map(e => `<span style="display: inline-block; background: var(--bg-hover); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; margin-right: 4px; margin-bottom: 4px;">📧 ${e}</span>`).join('')
+            : '<span style="color:var(--text-muted); font-size: 0.85rem;">이메일 없음</span>';
+
+          return `
+            <div class="card forwarder-card" style="padding: 1.5rem; display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border-color);">
+              <div style="flex-grow: 1;">
+                <h3 style="margin-top: 0; margin-bottom: 0.5rem; color: var(--text-primary);">${f.name}</h3>
+                <div style="margin-bottom: 0.5rem; display: flex; flex-wrap: wrap; gap: 4px;">
+                  ${emailDisplay}
+                </div>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">지정된 노선 수: <strong style="color: var(--text-primary);">${f.assigned_routes ? f.assigned_routes.length : 0}</strong>개</p>
+              </div>
+              <div class="card-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button class="btn btn-sm btn-outline btn-assign" data-id="${f.id}">노선 지정</button>
+                <button class="btn btn-sm btn-outline btn-edit" data-id="${f.id}">편집</button>
+                <button class="btn btn-sm btn-danger btn-delete" data-id="${f.id}">삭제</button>
+              </div>
             </div>
-            <div class="card-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-              <button class="btn btn-sm btn-outline btn-assign" data-id="${f.id}">노선 지정</button>
-              <button class="btn btn-sm btn-outline btn-edit" data-id="${f.id}">편집</button>
-              <button class="btn btn-sm btn-danger btn-delete" data-id="${f.id}">삭제</button>
-            </div>
-          </div>
-        `).join('') : '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">등록된 포워더가 없습니다.</div>'}
+          `;
+        }).join('') : '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">등록된 포워더가 없습니다.</div>'}
       </div>
     `;
 
@@ -58,7 +67,7 @@ export async function renderForwardersPage(container) {
     container.querySelectorAll('.btn-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
-        if (confirm('정말로 이 포워더를 삭제하시겠습니까?')) {
+        if (confirm('정말로 이 포워더를 삭제하시겠습니까? (등록된 영업사원 계정도 함께 삭제됩니다)')) {
           await deleteForwarder(id);
           showToast('삭제되었습니다.');
           await render();
@@ -69,18 +78,39 @@ export async function renderForwardersPage(container) {
 
   function openForwarderModal(forwarder = null) {
     const isEdit = !!forwarder;
+    const existingEmails = forwarder && forwarder.email
+      ? forwarder.email.split(/[\n,;]+/).map(e => e.trim()).filter(Boolean)
+      : [''];
+
+    if (existingEmails.length === 0) existingEmails.push('');
+
+    const renderEmailRow = (val = '') => `
+      <div class="email-input-row" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+        <input type="email" class="form-control forwarder-email-input" value="${val}" placeholder="sales@example.com" style="flex: 1;">
+        <button type="button" class="btn btn-outline btn-remove-email" style="padding: 6px 12px; color: var(--danger); border-color: var(--border-color);" title="삭제">✕</button>
+      </div>
+    `;
+
     const content = `
       <form id="forwarder-form">
-        <div class="form-group">
-          <label>포워더명</label>
-          <input type="text" id="forwarder-name" class="form-input" value="${forwarder ? forwarder.name : ''}" required>
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">포워더명</label>
+          <input type="text" id="forwarder-name" class="form-control" value="${forwarder ? forwarder.name : ''}" placeholder="예: 아토미 로지스틱스" required>
         </div>
-        <div class="form-group">
-          <label>이메일 주소 (포워더 로그인 ID로 사용됨)</label>
-          <input type="email" id="forwarder-email" class="form-input" value="${forwarder && forwarder.email ? forwarder.email : ''}" placeholder="메일발송 시 사용할 이메일">
-          <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">이메일 입력 시, 초기 비밀번호 <b>123qwe!@#</b> 로 포워더 계정이 자동 생성됩니다.</small>
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <label style="font-weight: 500;">영업사원 이메일 목록</label>
+            <button type="button" id="btn-add-email-row" class="btn btn-sm btn-outline" style="padding: 4px 10px; font-size: 0.85rem;">➕ 이메일 추가</button>
+          </div>
+          <div id="email-inputs-container">
+            ${existingEmails.map(val => renderEmailRow(val)).join('')}
+          </div>
+          <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem; line-height: 1.4;">
+            * 하나의 칸에 하나의 이메일을 입력하세요. <b>+ 이메일 추가</b> 버튼으로 영업사원을 더 추가할 수 있습니다.<br>
+            * 각 이메일 주소로 포워더 계정이 자동 생성되며 초기 비밀번호는 <b>123qwe!@#</b> 입니다.
+          </small>
         </div>
-        <div class="modal-footer" style="margin-top: 1rem; text-align: right;">
+        <div class="modal-footer" style="margin-top: 1.5rem; text-align: right; display: flex; justify-content: flex-end; gap: 0.5rem;">
           <button type="button" class="btn btn-outline" id="btn-cancel-forwarder">취소</button>
           <button type="submit" class="btn btn-primary">저장</button>
         </div>
@@ -92,19 +122,49 @@ export async function renderForwardersPage(container) {
       content: content
     });
 
+    const containerEl = document.getElementById('email-inputs-container');
+
+    // 이벤트 바인딩: 이메일 칸 추가
+    document.getElementById('btn-add-email-row').addEventListener('click', () => {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = renderEmailRow('');
+      const newRow = tempDiv.firstElementChild;
+      containerEl.appendChild(newRow);
+      newRow.querySelector('input').focus();
+    });
+
+    // 이벤트 바인딩: 삭제 버튼 (이벤트 위임)
+    containerEl.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-remove-email')) {
+        const rows = containerEl.querySelectorAll('.email-input-row');
+        if (rows.length > 1) {
+          e.target.closest('.email-input-row').remove();
+        } else {
+          // 마지막 1개는 삭제 대신 입력값 비우기
+          const input = rows[0].querySelector('input');
+          if (input) input.value = '';
+        }
+      }
+    });
+
     document.getElementById('btn-cancel-forwarder').addEventListener('click', closeModal);
 
     document.getElementById('forwarder-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = document.getElementById('forwarder-name').value;
-      const email = document.getElementById('forwarder-email').value;
+      const name = document.getElementById('forwarder-name').value.trim();
+      const emailInputs = containerEl.querySelectorAll('.forwarder-email-input');
+      const emailList = Array.from(emailInputs)
+        .map(input => input.value.trim())
+        .filter(val => val.length > 0);
       
+      const emailStr = emailList.join(', ');
+
       try {
         if (isEdit) {
-          await updateForwarder(forwarder.id, { name, email });
+          await updateForwarder(forwarder.id, { name, email: emailStr });
           showToast('포워더가 수정되었습니다.');
         } else {
-          await addForwarder({ name, email, assigned_routes: [] });
+          await addForwarder({ name, email: emailStr, assigned_routes: [] });
           showToast('포워더가 추가되었습니다.');
         }
         closeModal();

@@ -88,4 +88,6 @@ export function downloadCSV(dataOrCsv, columnsOrFilename, filename) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  // L5 수정: Blob URL 해제 (메모리 누수 방지)
+  URL.revokeObjectURL(url);
 }

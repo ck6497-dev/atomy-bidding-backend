@@ -51,9 +51,29 @@
   display: block;
 }
 
+/* 20FT, 40FT, T.TIME 등 수치형 입력/읽기전용 셀 오른쪽 정렬 및 여백 규칙 */
+.data-grid th.text-right,
+.data-grid td.text-right,
+.data-grid div.readonly.text-right,
+.grid-cell-input.text-right,
 .grid-cell-input[type="number"] {
-  text-align: right;
+  text-align: right !important;
+  padding-right: 20px !important;
   font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+
+/* Number Input 상하 화살표 (스피너 버튼) 완전히 제거 */
+.grid-cell-input[type="number"]::-webkit-outer-spin-button,
+.grid-cell-input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 .grid-cell-input:focus {

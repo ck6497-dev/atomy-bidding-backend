@@ -278,8 +278,20 @@ export async function renderBiddingPage(container) {
 
   async function openEmailConfirmModal(biddingData) {
     const forwarders = await getForwarders();
-    const forwardersWithEmail = forwarders.filter(f => f.email && f.email.trim() !== '');
-    const emailListStr = forwardersWithEmail.map(f => `${f.name} (${f.email})`).join(', ');
+    const emailTargets = [];
+    forwarders.forEach(f => {
+      if (f.email) {
+        const emails = f.email.split(/[\n,;]+/).map(e => e.trim()).filter(Boolean);
+        emails.forEach(email => {
+          emailTargets.push({
+            name: f.name,
+            email: email
+          });
+        });
+      }
+    });
+
+    const emailListStr = emailTargets.map(t => `${t.name} (${t.email})`).join(', ');
 
     const content = `
       <div style="color: var(--text-primary);">
@@ -287,16 +299,16 @@ export async function renderBiddingPage(container) {
         <p>입찰 생성을 완료하기 전, 등록된 포워더들에게 메일을 발송하시겠습니까?</p>
         
         <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin: 1rem 0; font-size: 0.9rem;">
-          <strong style="display: block; margin-bottom: 0.5rem;">수신 대상 (${forwardersWithEmail.length}명)</strong>
+          <strong style="display: block; margin-bottom: 0.5rem;">수신 대상 총 (${emailTargets.length}개 이메일)</strong>
           <div style="color: var(--text-secondary); max-height: 100px; overflow-y: auto;">
-            ${forwardersWithEmail.length > 0 ? emailListStr : '등록된 이메일이 없습니다.'}
+            ${emailTargets.length > 0 ? emailListStr : '등록된 이메일이 없습니다.'}
           </div>
         </div>
 
         <div class="modal-footer" style="margin-top: 1.5rem; text-align: right; display: flex; justify-content: flex-end; gap: 0.5rem;">
           <button type="button" class="btn btn-outline" id="btn-cancel-create">취소</button>
           <button type="button" class="btn btn-secondary" id="btn-create-only">메일 발송 없이 입찰 생성</button>
-          <button type="button" class="btn btn-primary" id="btn-send-and-create" ${forwardersWithEmail.length === 0 ? 'disabled' : ''}>메일 발송하고 입찰 생성</button>
+          <button type="button" class="btn btn-primary" id="btn-send-and-create" ${emailTargets.length === 0 ? 'disabled' : ''}>메일 발송하고 입찰 생성</button>
         </div>
       </div>
     `;
@@ -325,34 +337,39 @@ export async function renderBiddingPage(container) {
       btn.disabled = true;
       btn.innerText = '발송 중...';
 
+      // H4 수정: 입찰 생성을 먼저 수행한 후 이메일 발송 (중복 생성 방지)
       try {
-        const emailPromises = forwardersWithEmail.map(f => 
-          sendEmailApi(
-            f.email,
-            `[Atomy] 신규 입찰 안내: ${biddingData.title}`,
-            `
-              <div style="font-family: sans-serif; padding: 20px;">
-                <h2>Atomy 신규 해상 스팟 운임 입찰 안내</h2>
-                <p>안녕하세요 ${f.name}님,</p>
-                <p>새로운 입찰(<strong>${biddingData.title}</strong>)이 시작되었습니다.</p>
-                <p><strong>마감 시한:</strong> ${biddingData.deadline} 23:59 까지</p>
-                <p>아래 링크를 통해 운임을 입력해 주시기 바랍니다.</p>
-                <a href="${window.location.origin}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; margin-top: 10px;">운임 입력하기</a>
-              </div>
-            `
-          )
-        );
-
-        await Promise.all(emailPromises);
-
         const result = await addBidding(biddingData);
         if (result && result.error) throw new Error(result.error);
-        showToast('메일이 성공적으로 발송되었으며, 새 입찰이 시작되었습니다.');
+
+        // 입찰 생성 성공 후 이메일 발송 시도
+        try {
+          const emailPromises = emailTargets.map(t => {
+            const targetUrl = `${window.location.origin}/#/rate-entry?email=${encodeURIComponent(t.email)}`;
+            return sendEmailApi(
+              t.email,
+              `[Atomy] 신규 입찰 안내: ${biddingData.title}`,
+              `
+                <div style="font-family: sans-serif; padding: 20px;">
+                  <h2>Atomy 신규 해상 스팟 운임 입찰 안내</h2>
+                  <p>안녕하세요 ${t.name} 담당자님,</p>
+                  <p>새로운 입찰(<strong>${biddingData.title}</strong>)이 시작되었습니다.</p>
+                  <p><strong>마감 시한:</strong> ${biddingData.deadline} 23:59 까지</p>
+                  <p>아래 링크를 통해 운임을 입력해 주시기 바랍니다.</p>
+                  <a href="${targetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 10px;">운임 입력하기</a>
+                </div>
+              `
+            );
+          });
+          await Promise.all(emailPromises);
+          showToast('메일이 성공적으로 발송되었으며, 새 입찰이 시작되었습니다.');
+        } catch (emailError) {
+          console.error('메일 발송 실패:', emailError);
+          showToast('입찰은 생성되었으나, 메일 발송 중 오류가 발생했습니다.', 'warning');
+        }
       } catch (error) {
-        console.error('메일 발송 실패:', error);
-        alert(`메일 발송 중 오류가 발생했습니다: ${error.message}\n(입찰은 생성됩니다)`);
-        await addBidding(biddingData);
-        showToast('새 입찰이 시작되었습니다.');
+        console.error('입찰 생성 실패:', error);
+        showToast('오류: ' + error.message, 'error');
       } finally {
         closeModal();
         await render();

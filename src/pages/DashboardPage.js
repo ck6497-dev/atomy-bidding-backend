@@ -274,10 +274,11 @@ export async function renderDashboardPage(container) {
               POD: route.pod,
               담당자: route.manager || '',
               포워더명: f.name,
-              '20FT': rate.rate_20ft || '',
-              '40FT': rate.rate_40ft || '',
-              'T.TIME': rate.transit_time || '',
-              REMARK: rate.remark || ''
+              // M1 수정: 0값이 falsy로 누락되지 않도록 ?? 사용
+              '20FT': rate.rate_20ft ?? '',
+              '40FT': rate.rate_40ft ?? '',
+              'T.TIME': rate.transit_time ?? '',
+              REMARK: rate.remark ?? ''
             });
           });
         });

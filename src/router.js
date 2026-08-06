@@ -24,9 +24,10 @@ export function initRouter(container) {
   const handleHashChange = () => {
     const hash = window.location.hash || '#/login';
     currentRoute = hash;
+    const basePath = hash.split('?')[0];
     
-    // Look up route handler using the FULL hash (including #)
-    const handler = routes[hash];
+    // Look up route handler using basePath or full hash
+    const handler = routes[basePath] || routes[hash];
     if (handler) {
       mainContainer.innerHTML = '';
       handler(mainContainer);

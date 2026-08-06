@@ -89,9 +89,9 @@ export async function renderRateEntryPage(container) {
     const columns = [
       { key: 'country', label: '국가', type: 'readonly', width: '15%' },
       { key: 'pod', label: 'POD', type: 'readonly', width: '15%' },
-      { key: 'rate20ft', label: '20FT ($)', type: 'number', width: '10%' },
-      { key: 'rate40ft', label: '40FT ($)', type: 'number', width: '10%' },
-      { key: 'transitTime', label: 'T.TIME (일)', type: 'number', width: '10%' },
+      { key: 'rate20ft', label: '20FT ($)', type: 'number', align: 'right', width: '10%' },
+      { key: 'rate40ft', label: '40FT ($)', type: 'number', align: 'right', width: '10%' },
+      { key: 'transitTime', label: 'T.TIME (일)', type: 'number', align: 'right', width: '10%' },
       { key: 'remark', label: 'REMARK', type: 'text', width: '40%' }
     ];
 
@@ -157,15 +157,19 @@ export async function renderRateEntryPage(container) {
             const deadlineDate = new Date(bidding.deadline);
             deadlineDate.setHours(23, 59, 59, 999);
             const diffMs = deadlineDate - now;
-            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            const diffDays = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
             let urgencyColor = 'var(--success)';
             let urgencyBg = 'var(--success-bg)';
             if (diffDays <= 1) { urgencyColor = 'var(--danger)'; urgencyBg = 'var(--danger-bg)'; }
             else if (diffDays <= 2) { urgencyColor = 'var(--warning)'; urgencyBg = 'var(--warning-bg)'; }
+
+            const cleanDate = String(bidding.deadline).split('T')[0].slice(0, 10);
+            const dTag = `D-${diffDays}`;
+
             return `
               <div style="display: flex; align-items: center; gap: 8px; margin-left: auto; padding: 8px 16px; background: ${urgencyBg}; border: 1px solid ${urgencyColor}; border-radius: 8px;">
                 <span style="font-size: 1.1rem;">⏰</span>
-                <span style="color: ${urgencyColor}; font-weight: 700; font-size: 0.9rem;">마감시한: [${diffDays > 0 ? `D-${diffDays}` : 'D-Day'}] ${bidding.deadline} (23:59)</span>
+                <span style="color: ${urgencyColor}; font-weight: 700; font-size: 0.9rem;">마감시한: [${dTag}] ${cleanDate} (23:59)</span>
               </div>
             `;
           })() : ''}
@@ -320,9 +324,30 @@ export async function renderRateEntryPage(container) {
           `,
           confirmText: '최종제출',
           onConfirm: async () => {
-            await submitForwarder(bidding.id, forwarderId);
-            showToast('✅ 최종제출이 완료되었습니다.');
-            await render();
+            try {
+              // 아직 저장되지 않은 편집 사항이 있다면 자동 저장 후 최종제출
+              if (hasChanges) {
+                const ratesToSave = gridData.map(row => ({
+                  biddingId: bidding.id,
+                  forwarderId: forwarderId,
+                  routeId: row.id,
+                  rate20ft: row.rate20ft === '' ? null : Number(row.rate20ft),
+                  rate40ft: row.rate40ft === '' ? null : Number(row.rate40ft),
+                  transitTime: row.transitTime === '' ? null : Number(row.transitTime),
+                  remark: row.remark
+                }));
+                await saveRates(ratesToSave);
+                hasChanges = false;
+              }
+
+              const res = await submitForwarder(bidding.id, forwarderId);
+              if (res && res.error) throw new Error(res.error);
+
+              showToast('✅ 최종제출이 완료되었습니다.');
+              await render();
+            } catch (err) {
+              showToast('최종제출 실패: ' + err.message, 'error');
+            }
           }
         });
       });

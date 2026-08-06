@@ -1,6 +1,6 @@
-import { sampleRoutes, sampleForwarders, sampleBidding, sampleRates } from './utils/sampleData.js';
+// L1 수정: sampleData import 제거 (DB 마이그레이션 완료)
 
-const API_URL = 'http://localhost:3001/api'; // 로컬 테스트용
+const API_URL = '/api';
 
 // ─── JWT Token 관리 ──────────────────────────────────────────────────────────
 export function setToken(token) {
@@ -28,7 +28,13 @@ async function apiFetch(path, options = {}) {
     window.location.hash = '#/login';
     throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
   }
-  const data = await res.json();
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    throw new Error(`요청 실패 (${res.status}): 올바르지 않은 서버 응답입니다.`);
+  }
   if (!res.ok) {
     throw new Error(data.error || '요청 처리 중 오류가 발생했습니다.');
   }
@@ -83,6 +89,12 @@ export async function addAdminApi(email) {
   return apiFetch('/admins', {
     method: 'POST',
     body: JSON.stringify({ email })
+  });
+}
+
+export async function deleteAdminApi(id) {
+  return apiFetch(`/admins/${id}`, {
+    method: 'DELETE'
   });
 }
 
@@ -279,9 +291,4 @@ export function isForwarder() {
   return session?.role === 'forwarder';
 }
 
-// ─── Legacy 호환 (사용 안 함, 추후 제거) ────────────────────────────────────
-export function hasData() { return true; }
-export function initSampleData() { /* DB로 전환 완료 */ }
-export function saveRoutes() { /* API 사용 */ }
-export function saveForwarders() { /* API 사용 */ }
-export function saveAllRates() { /* API 사용 */ }
+// L2 수정: Legacy 호환 함수 제거 (DB로 전환 완료)

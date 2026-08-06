@@ -5,6 +5,11 @@ export function renderLoginPage(container) {
   let isSettingPassword = false;
   let currentEmail = '';
 
+  const hash = window.location.hash || '';
+  const queryString = hash.includes('?') ? hash.split('?')[1] : '';
+  const urlParams = new URLSearchParams(queryString);
+  const initialEmail = urlParams.get('email') || '';
+
   const renderForm = () => {
     container.innerHTML = `
       <div class="login-container" style="background: var(--bg-primary); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem;">
@@ -14,11 +19,17 @@ export function renderLoginPage(container) {
             <p style="color: var(--text-secondary);">${isSettingPassword ? '최초 로그인 - 비밀번호 설정' : '스마트한 해상 운임 비교 시스템'}</p>
           </div>
           
+          ${initialEmail ? `
+            <div style="background: rgba(0, 200, 255, 0.1); border: 1px solid var(--accent); padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--accent);">
+              📧 <strong>${initialEmail}</strong> 계정으로 운임을 입력하려면 로그인하세요.
+            </div>
+          ` : ''}
+
           <form id="login-form">
             ${!isSettingPassword ? `
               <div class="form-group" style="margin-bottom: 1.5rem;">
                 <label style="color: var(--text-primary); display: block; margin-bottom: 0.5rem;">이메일 아이디</label>
-                <input type="email" id="email" class="form-input" required placeholder="admin@example.com" style="width: 100%; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 0.5rem;">
+                <input type="email" id="email" class="form-input" required value="${initialEmail}" placeholder="sales@example.com" style="width: 100%; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 0.5rem;">
               </div>
               <div class="form-group" style="margin-bottom: 2rem;">
                 <label style="color: var(--text-primary); display: block; margin-bottom: 0.5rem;">비밀번호</label>

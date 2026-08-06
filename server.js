@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
@@ -20,6 +22,20 @@ if (!process.env.JWT_SECRET) {
 
 // ─── 간단한 이메일/IP 로그인 시도 횟수 제한 (Rate Limiter) ──────────────────────
 const loginAttempts = new Map();
+
+// C2 수정: 15분마다 만료된 로그인 시도 기록 정리 (메모리 누수 방지)
+setInterval(() => {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  for (const [ip, attempts] of loginAttempts.entries()) {
+    const valid = attempts.filter(ts => now - ts < windowMs);
+    if (valid.length === 0) {
+      loginAttempts.delete(ip);
+    } else {
+      loginAttempts.set(ip, valid);
+    }
+  }
+}, 15 * 60 * 1000);
 
 function rateLimitLogin(req, res, next) {
   const ip = req.ip || req.connection.remoteAddress;
@@ -134,6 +150,24 @@ async function initDB() {
       );
     `);
 
+    // ─── 포워더 영업사원 유저 계정 동기화 및 마이그레이션 ─────────────────
+    await client.query("DELETE FROM users WHERE role = 'forwarder' AND email LIKE '%,%'");
+    const fwRes = await client.query('SELECT * FROM forwarders');
+    const fwDefaultPassword = String(process.env.DEFAULT_INITIAL_PASSWORD || '123qwe!@#').trim();
+    const fwHash = await bcrypt.hash(fwDefaultPassword, 10);
+    for (const f of fwRes.rows) {
+      if (!f.email) continue;
+      const emails = f.email.split(/[\n,;]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+      for (const em of emails) {
+        await client.query(
+          "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'forwarder', true) ON CONFLICT (email) DO NOTHING",
+          [em, fwHash]
+        );
+      }
+    }
+    // 최초 로그인 대상 포워더 비밀번호 해시 일괄 갱신
+    await client.query("UPDATE users SET password_hash = $1 WHERE role = 'forwarder' AND is_first_login = true", [fwHash]);
+
     // 다른 테이블 유지
     await client.query(`
       CREATE TABLE IF NOT EXISTS routes (
@@ -212,10 +246,33 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// ─── 이메일 파싱 및 포워더 매칭 헬퍼 함수 ────────────────────────────────────
+function parseEmails(emailStr) {
+  if (!emailStr) return [];
+  return emailStr
+    .split(/[\n,;]+/)
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e.length > 0);
+}
+
+async function findForwarderIdByEmail(clientOrPool, email) {
+  if (!email) return null;
+  const target = String(email).trim().toLowerCase();
+  const res = await clientOrPool.query('SELECT id, email FROM forwarders');
+  for (const row of res.rows) {
+    const emails = parseEmails(row.email);
+    if (emails.includes(target)) {
+      return row.id;
+    }
+  }
+  return null;
+}
+
 // ─── AUTH API ────────────────────────────────────────────────────────────────
 // 로그인 (Rate Limiting 적용 및 이메일/비밀번호 trim 처리)
 app.post('/api/login', rateLimitLogin, async (req, res) => {
   const { email, password } = req.body;
+  console.log(`[LOGIN ATTEMPT] email: "${email}" (raw)`);
   if (!email || !password) return res.status(400).json({ error: '이메일과 비밀번호를 입력해주세요.' });
 
   const cleanEmail = String(email).trim().toLowerCase();
@@ -223,20 +280,26 @@ app.post('/api/login', rateLimitLogin, async (req, res) => {
 
   try {
     const result = await pool.query('SELECT * FROM users WHERE LOWER(TRIM(email)) = $1', [cleanEmail]);
+    console.log(`[LOGIN DB LOOKUP] email: "${cleanEmail}", rows found: ${result.rows.length}`);
+
     if (result.rows.length === 0) {
       if (req.recordFailedLogin) req.recordFailedLogin();
       return res.status(401).json({ error: '계정 또는 비밀번호가 일치하지 않습니다.' });
     }
 
     const user = result.rows[0];
+    console.log(`[LOGIN USER FOUND] id: ${user.id}, role: ${user.role}, is_first_login: ${user.is_first_login}`);
     
     const validPassword = await bcrypt.compare(cleanPassword, user.password_hash);
+    console.log(`[LOGIN PASSWORD CHECK] validPassword: ${validPassword}`);
+
     if (!validPassword) {
       if (req.recordFailedLogin) req.recordFailedLogin();
       return res.status(401).json({ error: '계정 또는 비밀번호가 일치하지 않습니다.' });
     }
 
     if (user.is_first_login) {
+      console.log(`[LOGIN REQUIRE PASSWORD SETUP] user: ${user.email}`);
       return res.status(200).json({ 
         require_password_setup: true, 
         email: user.email, 
@@ -247,8 +310,8 @@ app.post('/api/login', rateLimitLogin, async (req, res) => {
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
     const userInfo = { id: user.id, email: user.email, role: user.role };
     if (user.role === 'forwarder') {
-      const fwResult = await pool.query('SELECT id FROM forwarders WHERE email = $1', [user.email]);
-      if (fwResult.rows.length > 0) userInfo.forwarderId = fwResult.rows[0].id;
+      const fwId = await findForwarderIdByEmail(pool, user.email);
+      if (fwId) userInfo.forwarderId = fwId;
     }
     res.json({ token, user: userInfo });
   } catch (error) {
@@ -258,25 +321,40 @@ app.post('/api/login', rateLimitLogin, async (req, res) => {
 });
 
 // 최초 비밀번호 설정 (또는 비밀번호 변경)
+// M6 수정: is_first_login 상태 확인 후에만 허용 + M5 수정: 서버 측 비밀번호 검증 추가
 app.post('/api/set-password', async (req, res) => {
   const { email, newPassword } = req.body;
   if (!email || !newPassword) return res.status(400).json({ error: '필수 정보가 누락되었습니다.' });
 
+  // M5: 서버 측 비밀번호 길이 검증
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: '비밀번호는 최소 6자리 이상이어야 합니다.' });
+  }
+
   try {
+    // M6: is_first_login 상태 확인 — 최초 로그인 사용자만 이 엔드포인트 사용 가능
+    const checkUser = await pool.query('SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))', [email]);
+    if (checkUser.rows.length === 0) {
+      return res.status(404).json({ error: '해당 이메일의 사용자를 찾을 수 없습니다.' });
+    }
+    if (!checkUser.rows[0].is_first_login) {
+      return res.status(403).json({ error: '이미 비밀번호가 설정된 계정입니다. 로그인 후 비밀번호를 변경하세요.' });
+    }
+
     const hash = await bcrypt.hash(newPassword, 10);
     await pool.query(
-      'UPDATE users SET password_hash = $1, is_first_login = false WHERE email = $2',
+      'UPDATE users SET password_hash = $1, is_first_login = false WHERE LOWER(TRIM(email)) = LOWER(TRIM($2))',
       [hash, email]
     );
 
     // 변경 후 바로 토큰 발급하여 자동 로그인
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))', [email]);
     const user = result.rows[0];
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
     const userInfo = { id: user.id, email: user.email, role: user.role };
     if (user.role === 'forwarder') {
-      const fwResult = await pool.query('SELECT id FROM forwarders WHERE email = $1', [user.email]);
-      if (fwResult.rows.length > 0) userInfo.forwarderId = fwResult.rows[0].id;
+      const fwId = await findForwarderIdByEmail(pool, user.email);
+      if (fwId) userInfo.forwarderId = fwId;
     }
     res.json({ message: '비밀번호가 성공적으로 설정되었습니다.', token, user: userInfo });
   } catch (error) {
@@ -286,7 +364,7 @@ app.post('/api/set-password', async (req, res) => {
 
 // ─── ADMIN API (슈퍼 관리자용) ───────────────────────────────────────────────
 // 관리자 계정 목록 조회
-app.get('/api/admins', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.get('/api/admins', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const result = await pool.query("SELECT id, email, role, is_first_login, created_at FROM users WHERE role = 'admin' OR role = 'super_admin'");
     res.json(result.rows);
@@ -296,20 +374,48 @@ app.get('/api/admins', authenticateToken, requireSuperAdmin, async (req, res) =>
 });
 
 // 관리자 계정 추가
-app.post('/api/admins', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.post('/api/admins', authenticateToken, requireAdmin, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: '이메일을 입력해주세요.' });
+
+  const cleanEmail = email.trim().toLowerCase();
 
   try {
     const defaultPassword = process.env.DEFAULT_INITIAL_PASSWORD || '123qwe!@#';
     const hash = await bcrypt.hash(defaultPassword, 10);
     await pool.query(
       "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'admin', true)",
-      [email, hash]
+      [cleanEmail, hash]
     );
     res.json({ message: '관리자 계정이 추가되었습니다.' });
   } catch (error) {
     if (error.code === '23505') return res.status(400).json({ error: '이미 존재하는 이메일입니다.' });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 관리자 계정 삭제
+app.delete('/api/admins/:id', authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const targetId = Number(id);
+
+  if (req.user.id === targetId) {
+    return res.status(400).json({ error: '본인 계정은 삭제할 수 없습니다.' });
+  }
+
+  try {
+    const checkRes = await pool.query('SELECT role FROM users WHERE id = $1', [targetId]);
+    if (checkRes.rows.length === 0) {
+      return res.status(404).json({ error: '해당 계정을 찾을 수 없습니다.' });
+    }
+
+    if (checkRes.rows[0].role === 'super_admin') {
+      return res.status(403).json({ error: '최고 관리자 계정은 삭제할 수 없습니다.' });
+    }
+
+    await pool.query("DELETE FROM users WHERE id = $1 AND role = 'admin'", [targetId]);
+    res.json({ message: '팀원(관리자) 계정이 삭제되었습니다.' });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
@@ -320,11 +426,16 @@ app.get('/health', (req, res) => {
 });
 
 // ─── 이메일 발송 엔드포인트 ──────────────────────────────────────────────────
+// C1 수정: GMAIL_PASS 미설정 시 크래시 방지
+const gmailPass = (process.env.GMAIL_PASS || '').replace(/\s+/g, '');
+if (!process.env.GMAIL_PASS) {
+  console.warn('⚠️ WARNING: GMAIL_PASS가 .env에 설정되지 않았습니다. 이메일 발송 기능이 작동하지 않습니다.');
+}
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS.replace(/\s+/g, ''),
+    pass: gmailPass,
   },
 });
 
@@ -381,13 +492,16 @@ app.post('/api/forwarders', authenticateToken, requireAdmin, async (req, res) =>
       [id, name, email || null, JSON.stringify(routesArray)]
     );
 
-    if (email) {
+    const emails = parseEmails(email);
+    if (emails.length > 0) {
       const defaultPassword = process.env.DEFAULT_INITIAL_PASSWORD || '123qwe!@#';
       const hash = await bcrypt.hash(defaultPassword, 10);
-      await client.query(
-        "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'forwarder', true) ON CONFLICT (email) DO NOTHING",
-        [email, hash]
-      );
+      for (const em of emails) {
+        await client.query(
+          "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'forwarder', true) ON CONFLICT (email) DO NOTHING",
+          [em, hash]
+        );
+      }
     }
     
     await client.query('COMMIT');
@@ -423,25 +537,28 @@ app.put('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, res)
     }
     const routesArray = Array.isArray(newRoutes) ? newRoutes : [];
 
-    const oldEmail = old.email;
-    
     await client.query(
       'UPDATE forwarders SET name = $1, email = $2, assigned_routes = $3::jsonb WHERE id = $4',
       [newName, newEmail || null, JSON.stringify(routesArray), id]
     );
 
-    if (oldEmail !== newEmail) {
-      if (oldEmail) {
-        await client.query('DELETE FROM users WHERE email = $1 AND role = $2', [oldEmail, 'forwarder']);
-      }
-      if (newEmail) {
-        const defaultPassword = process.env.DEFAULT_INITIAL_PASSWORD || '123qwe!@#';
-        const hash = await bcrypt.hash(defaultPassword, 10);
-        await client.query(
-          "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'forwarder', true) ON CONFLICT (email) DO NOTHING",
-          [newEmail, hash]
-        );
-      }
+    const oldEmails = parseEmails(old.email);
+    const newEmails = parseEmails(newEmail);
+
+    // 삭제된 이메일에 대해서만 users 삭제
+    const removedEmails = oldEmails.filter(e => !newEmails.includes(e));
+    for (const rem of removedEmails) {
+      await client.query('DELETE FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) AND role = $2', [rem, 'forwarder']);
+    }
+
+    // 새 이메일에 대해 user 생성
+    const defaultPassword = process.env.DEFAULT_INITIAL_PASSWORD || '123qwe!@#';
+    const hash = await bcrypt.hash(defaultPassword, 10);
+    for (const em of newEmails) {
+      await client.query(
+        "INSERT INTO users (email, password_hash, role, is_first_login) VALUES ($1, $2, 'forwarder', true) ON CONFLICT (email) DO NOTHING",
+        [em.trim().toLowerCase(), hash]
+      );
     }
     
     await client.query('COMMIT');
@@ -461,10 +578,10 @@ app.delete('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, r
     await client.query('BEGIN');
     const oldForwarder = await client.query('SELECT * FROM forwarders WHERE id = $1', [id]);
     if (oldForwarder.rows.length > 0) {
-      const email = oldForwarder.rows[0].email;
+      const emails = parseEmails(oldForwarder.rows[0].email);
       await client.query('DELETE FROM forwarders WHERE id = $1', [id]);
-      if (email) {
-        await client.query('DELETE FROM users WHERE email = $1 AND role = $2', [email, 'forwarder']);
+      for (const em of emails) {
+        await client.query('DELETE FROM users WHERE email = $1 AND role = $2', [em, 'forwarder']);
       }
     }
     await client.query('COMMIT');
@@ -526,7 +643,8 @@ app.delete('/api/routes/:id', authenticateToken, requireAdmin, async (req, res) 
 });
 
 app.post('/api/routes/bulk', authenticateToken, requireAdmin, async (req, res) => {
-  const routes = req.body;
+  // H1 수정: 프론트엔드가 { routes: [...] } 형태로 보내는 것도 지원
+  const routes = Array.isArray(req.body) ? req.body : (Array.isArray(req.body.routes) ? req.body.routes : null);
   if (!Array.isArray(routes)) return res.status(400).json({ error: '배열 형식이 필요합니다.' });
   
   const client = await pool.connect();
@@ -645,8 +763,7 @@ app.post('/api/rates', authenticateToken, async (req, res) => {
   }));
 
   if (req.user.role === 'forwarder') {
-    const fwRes = await pool.query('SELECT id FROM forwarders WHERE email = $1', [req.user.email]);
-    const myFwId = fwRes.rows.length > 0 ? fwRes.rows[0].id : null;
+    const myFwId = await findForwarderIdByEmail(pool, req.user.email);
     const isUnauthorized = ratesArray.some(r => !r || r.forwarder_id !== myFwId);
     if (isUnauthorized) {
       return res.status(403).json({ error: '본인 포워더 계정의 운임만 입력/수정할 수 있습니다.' });
@@ -694,8 +811,7 @@ app.post('/api/rates/submit', authenticateToken, async (req, res) => {
   if (!biddingId || !forwarderId) return res.status(400).json({ error: '필수 값이 누락되었습니다.' });
 
   if (req.user.role === 'forwarder') {
-    const fwRes = await pool.query('SELECT id FROM forwarders WHERE email = $1', [req.user.email]);
-    const myFwId = fwRes.rows.length > 0 ? fwRes.rows[0].id : null;
+    const myFwId = await findForwarderIdByEmail(pool, req.user.email);
     if (forwarderId !== myFwId) {
       return res.status(403).json({ error: '본인 포워더 계정만 최종 제출할 수 있습니다.' });
     }
@@ -747,6 +863,16 @@ app.post('/api/rates/revoke', authenticateToken, async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// ─── 정적 파일 서빙 (Render 배포용) ──────────────────────────────────────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// SPA 폴백: API가 아닌 모든 요청 → index.html
+app.get('/{*path}', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // ─── 서버 시작 ────────────────────────────────────────────────────────────────

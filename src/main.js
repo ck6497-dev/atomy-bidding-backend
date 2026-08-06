@@ -37,11 +37,29 @@ document.addEventListener('DOMContentLoaded', () => {
   function withLayout(pageRenderer, requiredRole) {
     return async (container) => {
       const session = getSession();
+      const hash = window.location.hash || '';
+      const queryString = hash.includes('?') ? hash.split('?')[1] : '';
+      const urlParams = new URLSearchParams(queryString);
+      const targetEmail = urlParams.get('email');
+
       if (requiredRole === 'admin' && !isAdmin()) {
         return navigate('#/rate-entry');
       }
-      if (requiredRole === 'forwarder' && !isForwarder()) {
-        return navigate('#/dashboard');
+
+      if (requiredRole === 'forwarder') {
+        // 메일 링크를 통해 특정 이메일로 접속 요청이 들어온 경우
+        if (targetEmail && session && session.email !== targetEmail) {
+          clearSession();
+          return navigate('#/login?email=' + encodeURIComponent(targetEmail));
+        }
+        // 관리자로 로그인된 상태에서 포워더 전용 운임입력 메일 링크 클릭 시
+        if (!isForwarder()) {
+          if (session && isAdmin()) {
+            clearSession();
+            return navigate('#/login' + (targetEmail ? '?email=' + encodeURIComponent(targetEmail) : ''));
+          }
+          return navigate('#/login');
+        }
       }
       
       const mainContent = renderAppLayout();

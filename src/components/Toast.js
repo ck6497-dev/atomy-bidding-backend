@@ -24,17 +24,17 @@ export function showToast(message, type = 'success') {
   
   container.appendChild(toast);
   
-  // slide in animation
-  toast.style.transform = 'translateX(100%)';
+  // slide in animation (top center drop down)
+  toast.style.transform = 'translateY(-20px)';
   toast.style.opacity = '0';
-  toast.style.transition = 'all 0.3s ease';
+  toast.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
   setTimeout(() => {
-    toast.style.transform = 'translateX(0)';
+    toast.style.transform = 'translateY(0)';
     toast.style.opacity = '1';
   }, 10);
   
   const removeToast = () => {
-    toast.style.transform = 'translateX(100%)';
+    toast.style.transform = 'translateY(-20px)';
     toast.style.opacity = '0';
     setTimeout(() => {
       toast.remove();

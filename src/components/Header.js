@@ -4,8 +4,10 @@ import { navigate } from '../router.js';
 export function renderHeader(container) {
   const session = getSession();
   
-  const roleName = session?.role === 'admin' ? '관리자' : '포워더';
-  const userName = session?.role === 'admin' ? '관리자' : (session?.forwarderName || '');
+  // H2 수정: super_admin도 관리자로 표시
+  const isAdminRole = session?.role === 'admin' || session?.role === 'super_admin';
+  const roleName = isAdminRole ? (session?.role === 'super_admin' ? '최고관리자' : '관리자') : '포워더';
+  const userName = isAdminRole ? roleName : (session?.forwarderName || '');
   
   const headerHtml = `
     <header class="header">
@@ -26,7 +28,8 @@ export function renderHeader(container) {
   const logo = container.querySelector('.header-logo');
   if (logo) {
     logo.addEventListener('click', () => {
-      if (session?.role === 'admin') navigate('#/dashboard');
+      // H3 수정: super_admin도 대시보드로 이동
+      if (session?.role === 'admin' || session?.role === 'super_admin') navigate('#/dashboard');
       else if (session?.role === 'forwarder') navigate('#/rate-entry');
       else navigate('#/login');
     });

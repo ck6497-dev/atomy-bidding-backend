@@ -16,6 +16,7 @@
   padding: 12px 16px;
   color: var(--text-secondary);
   font-weight: 600;
+  font-size: var(--font-sm);
   text-align: left;
   position: sticky;
   top: 0;
@@ -27,10 +28,10 @@
 }
 
 /* 열 너비 고정 (퍼센트 기반) */
-.dashboard-table th:nth-child(1) { width: 5%; }    /* No */
-.dashboard-table th:nth-child(2) { width: 10%; }   /* 국가 */
-.dashboard-table th:nth-child(3) { width: 14%; }   /* POD */
-.dashboard-table th:nth-child(4) { width: 16%; }   /* 포워더명 */
+.dashboard-table th:nth-child(1) { width: 4%; }    /* No */
+.dashboard-table th:nth-child(2) { width: 9%; }    /* 국가 */
+.dashboard-table th:nth-child(3) { width: 20%; }   /* POD */
+.dashboard-table th:nth-child(4) { width: 12%; }   /* 포워더명 */
 .dashboard-table th:nth-child(5),
 .dashboard-table th:nth-child(6),
 .dashboard-table th:nth-child(7) { width: 7%; border-right: 1px solid var(--border-color); }
@@ -43,6 +44,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--font-sm);
 }
 
 .route-group-cell {
@@ -135,6 +137,25 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.stat-card .label {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  margin-bottom: 4px;
+}
+
+.stat-card .value {
+  color: var(--text-primary);
+  font-size: var(--font-xl);
+  font-weight: 700;
 }
 
 @media (max-width: 1024px) {

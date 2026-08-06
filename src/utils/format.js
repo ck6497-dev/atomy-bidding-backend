@@ -19,6 +19,13 @@ export function formatNumber(value) {
 
 export function formatDate(dateString) {
   if (!dateString) return '-';
+  
+  // M3 수정: 날짜 전용 문자열(YYYY-MM-DD)은 UTC로 파싱되어 시간대 문제 발생 방지
+  const dateOnly = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    return `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]}`;
+  }
+  
   const d = new Date(dateString);
   if (isNaN(d.getTime())) return dateString;
   
