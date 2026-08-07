@@ -87,7 +87,8 @@ export function renderLoginPage(container) {
             role: result.user.role,
             email: result.user.email,
             id: result.user.id,
-            forwarderId: result.user.forwarderId || null
+            forwarderId: result.user.forwarderId || null,
+            forwarderName: result.user.forwarderName || null
           });
           
           if (result.user.role === 'admin' || result.user.role === 'super_admin') {
@@ -117,7 +118,8 @@ export function renderLoginPage(container) {
             role: result.user.role,
             email: result.user.email,
             id: result.user.id,
-            forwarderId: result.user.forwarderId || null
+            forwarderId: result.user.forwarderId || null,
+            forwarderName: result.user.forwarderName || null
           });
 
           if (result.user.role === 'admin' || result.user.role === 'super_admin') {

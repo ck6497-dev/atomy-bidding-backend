@@ -258,11 +258,11 @@ function parseEmails(emailStr) {
 async function findForwarderIdByEmail(clientOrPool, email) {
   if (!email) return null;
   const target = String(email).trim().toLowerCase();
-  const res = await clientOrPool.query('SELECT id, email FROM forwarders');
+  const res = await clientOrPool.query('SELECT id, name, email FROM forwarders');
   for (const row of res.rows) {
     const emails = parseEmails(row.email);
     if (emails.includes(target)) {
-      return row.id;
+      return { id: row.id, name: row.name };
     }
   }
   return null;
@@ -310,8 +310,11 @@ app.post('/api/login', rateLimitLogin, async (req, res) => {
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
     const userInfo = { id: user.id, email: user.email, role: user.role };
     if (user.role === 'forwarder') {
-      const fwId = await findForwarderIdByEmail(pool, user.email);
-      if (fwId) userInfo.forwarderId = fwId;
+      const fw = await findForwarderIdByEmail(pool, user.email);
+      if (fw) {
+        userInfo.forwarderId = fw.id;
+        userInfo.forwarderName = fw.name;
+      }
     }
     res.json({ token, user: userInfo });
   } catch (error) {
@@ -353,8 +356,11 @@ app.post('/api/set-password', async (req, res) => {
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
     const userInfo = { id: user.id, email: user.email, role: user.role };
     if (user.role === 'forwarder') {
-      const fwId = await findForwarderIdByEmail(pool, user.email);
-      if (fwId) userInfo.forwarderId = fwId;
+      const fw = await findForwarderIdByEmail(pool, user.email);
+      if (fw) {
+        userInfo.forwarderId = fw.id;
+        userInfo.forwarderName = fw.name;
+      }
     }
     res.json({ message: '비밀번호가 성공적으로 설정되었습니다.', token, user: userInfo });
   } catch (error) {
@@ -763,7 +769,8 @@ app.post('/api/rates', authenticateToken, async (req, res) => {
   }));
 
   if (req.user.role === 'forwarder') {
-    const myFwId = await findForwarderIdByEmail(pool, req.user.email);
+    const myFw = await findForwarderIdByEmail(pool, req.user.email);
+    const myFwId = myFw ? myFw.id : null;
     const isUnauthorized = ratesArray.some(r => !r || r.forwarder_id !== myFwId);
     if (isUnauthorized) {
       return res.status(403).json({ error: '본인 포워더 계정의 운임만 입력/수정할 수 있습니다.' });
@@ -811,7 +818,8 @@ app.post('/api/rates/submit', authenticateToken, async (req, res) => {
   if (!biddingId || !forwarderId) return res.status(400).json({ error: '필수 값이 누락되었습니다.' });
 
   if (req.user.role === 'forwarder') {
-    const myFwId = await findForwarderIdByEmail(pool, req.user.email);
+    const myFw = await findForwarderIdByEmail(pool, req.user.email);
+    const myFwId = myFw ? myFw.id : null;
     if (forwarderId !== myFwId) {
       return res.status(403).json({ error: '본인 포워더 계정만 최종 제출할 수 있습니다.' });
     }

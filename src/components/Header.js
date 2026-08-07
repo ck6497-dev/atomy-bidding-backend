@@ -6,7 +6,7 @@ export function renderHeader(container) {
   
   // H2 수정: super_admin도 관리자로 표시
   const isAdminRole = session?.role === 'admin' || session?.role === 'super_admin';
-  const roleName = isAdminRole ? (session?.role === 'super_admin' ? '최고관리자' : '관리자') : '포워더';
+  const roleName = isAdminRole ? (session?.role === 'super_admin' ? '최고관리자' : '관리자') : (session?.forwarderName || '포워더');
   const userName = isAdminRole ? roleName : (session?.forwarderName || '');
   
   const headerHtml = `
