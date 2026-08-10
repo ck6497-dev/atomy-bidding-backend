@@ -1,3 +1,4 @@
+/* ─── 다크 테마 (기본값) ─── */
 :root {
   --bg-primary: #0a0e1a;
   --bg-secondary: #111827;
@@ -25,6 +26,54 @@
   --font-lg: clamp(1.1rem, 1rem + 0.45vw, 1.3rem);          /* ~ 17.6px - 20.8px */
   --font-xl: clamp(1.35rem, 1.2rem + 0.75vw, 1.7rem);       /* ~ 21.6px - 27.2px */
   --font-2xl: clamp(1.75rem, 1.5rem + 1.2vw, 2.3rem);       /* ~ 28px - 36.8px */
+}
+
+/* ─── 라이트 테마 ─── */
+[data-theme="light"] {
+  --bg-primary: #f0f4f8;
+  --bg-secondary: #ffffff;
+  --bg-surface: #e8edf2;
+  --bg-hover: #dce3ea;
+  --border-color: #c8d3dc;
+  --border-light: #a0b0be;
+  --text-primary: #1a2433;
+  --text-secondary: #4a5e72;
+  --text-muted: #7a8fa3;
+  --accent: #0891b2;
+  --accent-hover: #06b6d4;
+  --accent-glow: rgba(8, 145, 178, 0.15);
+  --success: #059669;
+  --success-bg: rgba(5, 150, 105, 0.10);
+  --danger: #dc2626;
+  --danger-bg: rgba(220, 38, 38, 0.10);
+  --warning: #d97706;
+  --warning-bg: rgba(217, 119, 6, 0.10);
+}
+
+/* 라이트 테마에서 헤더 배경색 별도 지정 */
+[data-theme="light"] .header {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* 라이트 테마에서 스크롤바 */
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* 라이트 테마에서 토스트 그림자 */
+[data-theme="light"] .toast {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* 라이트 테마에서 로그인 카드 그림자 */
+[data-theme="light"] .login-card {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -91,6 +140,37 @@ small { font-size: var(--font-xs); }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes themeSwitch { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.2); } 100% { transform: rotate(360deg) scale(1); } }
+
+/* ─── 테마 전환 버튼 ─── */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.25s ease;
+  line-height: 1;
+}
+.theme-toggle-btn:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.08);
+}
+.theme-toggle-btn .theme-icon {
+  display: inline-block;
+  transition: transform 0.4s ease;
+}
+.theme-toggle-btn:active .theme-icon {
+  animation: themeSwitch 0.4s ease;
+}
 
 :focus-visible {
   outline: 2px solid var(--accent);

@@ -1,6 +1,6 @@
 import { getSession, isAdmin, isForwarder, clearSession } from './store.js';
 import { registerRoute, navigate, initRouter } from './router.js';
-import { renderHeader } from './components/Header.js';
+import { renderHeader, initTheme } from './components/Header.js';
 import { renderSidebar } from './components/Sidebar.js';
 import { renderLoginPage } from './pages/LoginPage.js';
 import { renderDashboardPage } from './pages/DashboardPage.js';
@@ -11,6 +11,9 @@ import { renderRateEntryPage } from './pages/RateEntryPage.js';
 import { renderAdminsPage } from './pages/AdminsPage.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 저장된 테마를 가장 먼저 적용 (화면 깜빡임 방지)
+  initTheme();
+
   const appContainer = document.getElementById('app');
   if (!appContainer) return;
 
