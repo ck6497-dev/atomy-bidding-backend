@@ -19,7 +19,7 @@ export function renderLoginPage(container) {
               <img src="/atomy-logo.png" alt="Atomy" style="height: 48px; object-fit: contain;">
               <span style="font-size: 2rem; font-weight: 700; color: var(--accent);">Atomy Bidding</span>
             </div>
-            <p style="color: var(--text-secondary);">${isSettingPassword ? '최초 로그인 - 비밀번호 설정' : '스마트한 해상 운임 비교 시스템'}</p>
+            <p style="color: var(--text-secondary);">${isSettingPassword ? '최초 로그인 - 비밀번호 설정' : '애터미 해상 운임 비딩 시스템'}</p>
           </div>
           
           ${initialEmail ? `
