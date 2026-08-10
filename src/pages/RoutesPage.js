@@ -3,6 +3,29 @@ import { showModal, closeModal } from '../components/Modal.js';
 import { showToast } from '../components/Toast.js';
 import { parseCSV, generateCSV, downloadCSV, readFileAsText } from '../utils/csv.js';
 
+// ─── 권역 목록 (7개 고정) ────────────────────────────────────────────────────
+const REGIONS = [
+  { value: 'southeast_asia', label: '동남아시아' },
+  { value: 'northeast_asia', label: '동북아시아' },
+  { value: 'north_america',  label: '북미' },
+  { value: 'europe_med',     label: '유럽 및 지중해' },
+  { value: 'oceania',        label: '오세아니아' },
+  { value: 'latin_america',  label: '중남미' },
+  { value: 'russia_cis',     label: '러시아 및 CIS' },
+];
+
+export function getRegionLabel(value) {
+  const found = REGIONS.find(r => r.value === value);
+  return found ? found.label : (value || '');
+}
+
+function regionSelectOptions(selectedValue = '') {
+  return `<option value="">-- 선택 --</option>` +
+    REGIONS.map(r =>
+      `<option value="${r.value}" ${selectedValue === r.value ? 'selected' : ''}>${r.label}</option>`
+    ).join('');
+}
+
 export async function renderRoutesPage(container) {
   async function render() {
     const routes = await getRoutes();
@@ -25,6 +48,7 @@ export async function renderRoutesPage(container) {
               <th>No</th>
               <th>국가</th>
               <th>POD</th>
+              <th>권역</th>
               <th>담당자</th>
               <th>액션</th>
             </tr>
@@ -35,13 +59,14 @@ export async function renderRoutesPage(container) {
                 <td>${route.no}</td>
                 <td>${route.country}</td>
                 <td>${route.pod}</td>
+                <td>${route.region ? `<span class="badge badge-preparing" style="font-weight:500;">${getRegionLabel(route.region)}</span>` : '<span style="color:var(--text-muted);">-</span>'}</td>
                 <td>${route.manager || ''}</td>
                 <td>
                   <button class="btn btn-sm btn-outline btn-edit" data-id="${route.id}">편집</button>
                   <button class="btn btn-sm btn-danger btn-delete" data-id="${route.id}">삭제</button>
                 </td>
               </tr>
-            `).join('') : `<tr><td colspan="5" style="text-align:center;">등록된 노선이 없습니다.</td></tr>`}
+            `).join('') : `<tr><td colspan="6" style="text-align:center;">등록된 노선이 없습니다.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -65,12 +90,18 @@ export async function renderRoutesPage(container) {
           if (data && data.length > 0) {
             const routesToAdd = data
               .filter(row => row['No'] && row['국가'] && row['POD'])
-              .map(row => ({
-                no: row['No'],
-                country: row['국가'],
-                pod: row['POD'],
-                manager: row['담당자'] || ''
-              }));
+              .map(row => {
+                // CSV 권역 컬럼: 한글 이름 또는 value 모두 허용
+                const regionRaw = row['권역'] || '';
+                const regionMatch = REGIONS.find(r => r.label === regionRaw.trim() || r.value === regionRaw.trim());
+                return {
+                  no: row['No'],
+                  country: row['국가'],
+                  pod: row['POD'],
+                  region: regionMatch ? regionMatch.value : '',
+                  manager: row['담당자'] || ''
+                };
+              });
             
             if (routesToAdd.length > 0) {
               await bulkAddRoutes(routesToAdd);
@@ -91,6 +122,7 @@ export async function renderRoutesPage(container) {
         No: r.no,
         국가: r.country,
         POD: r.pod,
+        권역: getRegionLabel(r.region),
         담당자: r.manager || ''
       }));
       const csvContent = generateCSV(exportData);
@@ -135,6 +167,12 @@ export async function renderRoutesPage(container) {
           <input type="text" id="route-pod" class="form-input" value="${route ? route.pod : ''}" required>
         </div>
         <div class="form-group">
+          <label>권역</label>
+          <select id="route-region" class="form-select">
+            ${regionSelectOptions(route ? route.region : '')}
+          </select>
+        </div>
+        <div class="form-group">
           <label>담당자</label>
           <input type="text" id="route-manager" class="form-input" value="${route ? (route.manager || '') : ''}">
         </div>
@@ -160,6 +198,7 @@ export async function renderRoutesPage(container) {
         no: document.getElementById('route-no').value,
         country: document.getElementById('route-country').value,
         pod: document.getElementById('route-pod').value,
+        region: document.getElementById('route-region').value,
         manager: document.getElementById('route-manager').value
       };
 

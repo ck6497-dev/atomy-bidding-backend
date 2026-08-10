@@ -4,9 +4,22 @@ import {
 } from '../store.js';
 import { downloadCSV, generateCSV } from '../utils/csv.js';
 import { formatCurrency, formatNumber } from '../utils/format.js';
+import { getRegionLabel } from './RoutesPage.js';
+
+// 권역 목록 (대시보드 필터용)
+const REGION_OPTIONS = [
+  { value: 'southeast_asia', label: '동남아시아' },
+  { value: 'northeast_asia', label: '동북아시아' },
+  { value: 'north_america',  label: '북미' },
+  { value: 'europe_med',     label: '유럽 및 지중해' },
+  { value: 'oceania',        label: '오세아니아' },
+  { value: 'latin_america',  label: '중남미' },
+  { value: 'russia_cis',     label: '러시아 및 CIS' },
+];
 
 export async function renderDashboardPage(container) {
   let filterManager = 'all';
+  let filterRegion = 'all';
   let searchQuery = '';
   let selectedBiddingId = null;
   
@@ -33,6 +46,9 @@ export async function renderDashboardPage(container) {
     let filteredRoutes = allRoutes;
     if (filterManager !== 'all') {
       filteredRoutes = filteredRoutes.filter(r => r.manager === filterManager);
+    }
+    if (filterRegion !== 'all') {
+      filteredRoutes = filteredRoutes.filter(r => r.region === filterRegion);
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -200,7 +216,14 @@ export async function renderDashboardPage(container) {
         </div>
       </div>
 
-      <div class="filter-bar" style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem;">
+      <div class="filter-bar" style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <label for="filter-region" style="color: var(--text-secondary); white-space: nowrap;">권역:</label>
+          <select id="filter-region" class="form-select" style="width: auto;">
+            <option value="all">전체</option>
+            ${REGION_OPTIONS.map(r => `<option value="${r.value}" ${filterRegion === r.value ? 'selected' : ''}>${r.label}</option>`).join('')}
+          </select>
+        </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <label for="filter-manager" style="color: var(--text-secondary); white-space: nowrap;">담당자:</label>
           <select id="filter-manager" class="form-select" style="width: auto;">
@@ -243,6 +266,11 @@ export async function renderDashboardPage(container) {
       });
     }
 
+    container.querySelector('#filter-region').addEventListener('change', (e) => {
+      filterRegion = e.target.value;
+      render();
+    });
+
     container.querySelector('#filter-manager').addEventListener('change', (e) => {
       filterManager = e.target.value;
       render();
@@ -270,6 +298,7 @@ export async function renderDashboardPage(container) {
             const rate = allRatesData.find(r => r.route_id === route.id && r.forwarder_id === f.id) || {};
             exportData.push({
               No: route.no,
+              권역: getRegionLabel(route.region),
               국가: route.country,
               POD: route.pod,
               담당자: route.manager || '',

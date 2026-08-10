@@ -179,6 +179,7 @@ async function initDB() {
       );
 
       ALTER TABLE routes ADD COLUMN IF NOT EXISTS manager VARCHAR(100);
+      ALTER TABLE routes ADD COLUMN IF NOT EXISTS region VARCHAR(100);
 
       CREATE TABLE IF NOT EXISTS biddings (
         id VARCHAR(50) PRIMARY KEY,
@@ -611,12 +612,12 @@ app.get('/api/routes', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/routes', authenticateToken, requireAdmin, async (req, res) => {
-  const { no, country, pod, manager } = req.body;
+  const { no, country, pod, manager, region } = req.body;
   try {
     const id = crypto.randomUUID();
     await pool.query(
-      'INSERT INTO routes (id, no, country, pod, manager) VALUES ($1, $2, $3, $4, $5)',
-      [id, no, country, pod, manager]
+      'INSERT INTO routes (id, no, country, pod, manager, region) VALUES ($1, $2, $3, $4, $5, $6)',
+      [id, no, country, pod, manager, region || null]
     );
     res.json({ message: '노선이 추가되었습니다.', id });
   } catch (error) {
@@ -626,11 +627,11 @@ app.post('/api/routes', authenticateToken, requireAdmin, async (req, res) => {
 
 app.put('/api/routes/:id', authenticateToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { no, country, pod, manager } = req.body;
+  const { no, country, pod, manager, region } = req.body;
   try {
     await pool.query(
-      'UPDATE routes SET no = $1, country = $2, pod = $3, manager = $4 WHERE id = $5',
-      [no, country, pod, manager, id]
+      'UPDATE routes SET no = $1, country = $2, pod = $3, manager = $4, region = $5 WHERE id = $6',
+      [no, country, pod, manager, region || null, id]
     );
     res.json({ message: '노선이 수정되었습니다.' });
   } catch (error) {
@@ -659,8 +660,8 @@ app.post('/api/routes/bulk', authenticateToken, requireAdmin, async (req, res) =
     for (const r of routes) {
       const id = crypto.randomUUID();
       await client.query(
-        'INSERT INTO routes (id, no, country, pod, manager) VALUES ($1, $2, $3, $4, $5)',
-        [id, r.no, r.country, r.pod, r.manager]
+        'INSERT INTO routes (id, no, country, pod, manager, region) VALUES ($1, $2, $3, $4, $5, $6)',
+        [id, r.no, r.country, r.pod, r.manager, r.region || null]
       );
     }
     await client.query('COMMIT');
