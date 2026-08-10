@@ -30,7 +30,10 @@ export function renderHeader(container) {
   
   const headerHtml = `
     <header class="header">
-      <div class="header-logo" style="cursor: pointer;">🚢 Atomy Bidding</div>
+      <div class="header-logo" style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <img src="/atomy-logo.png" alt="Atomy" class="header-logo-img" style="height: 28px; object-fit: contain; vertical-align: middle;">
+        <span style="font-size: var(--font-md); font-weight: 700; color: var(--accent);">Bidding</span>
+      </div>
       <div class="header-info"></div>
       <div class="header-user">
         ${session ? `

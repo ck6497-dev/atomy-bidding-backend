@@ -15,7 +15,10 @@ export function renderLoginPage(container) {
       <div class="login-container" style="background: var(--bg-primary); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem;">
         <div class="login-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(10px); padding: 3rem; border-radius: 1rem; width: 100%; max-width: 400px;">
           <div class="text-center" style="margin-bottom: 2.5rem; text-align: center;">
-            <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem; color: var(--text-primary); text-shadow: 0 2px 4px rgba(0,0,0,0.3);">🚢 Atomy Bidding</h1>
+            <div style="margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 12px;">
+              <img src="/atomy-logo.png" alt="Atomy" style="height: 48px; object-fit: contain;">
+              <span style="font-size: 2rem; font-weight: 700; color: var(--accent);">Bidding</span>
+            </div>
             <p style="color: var(--text-secondary);">${isSettingPassword ? '최초 로그인 - 비밀번호 설정' : '스마트한 해상 운임 비교 시스템'}</p>
           </div>
           

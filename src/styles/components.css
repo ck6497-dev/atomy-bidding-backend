@@ -531,3 +531,15 @@
 .header-info {
   color: var(--text-secondary);
 }
+
+/* 헤더 로고 이미지 */
+.header-logo-img {
+  height: 28px;
+  object-fit: contain;
+  /* 다크 테마: 원본 파란색 그대로 표시 */
+  filter: none;
+}
+/* 라이트 테마에서도 원본 파란색 그대로 */
+[data-theme="light"] .header-logo-img {
+  filter: none;
+}
