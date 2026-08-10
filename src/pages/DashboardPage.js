@@ -20,6 +20,7 @@ const REGION_OPTIONS = [
 export async function renderDashboardPage(container) {
   let filterManager = 'all';
   let filterRegion = 'all';
+  let filterForwarder = 'all';
   let searchQuery = '';
   let selectedBiddingId = null;
   
@@ -59,6 +60,7 @@ export async function renderDashboardPage(container) {
     }
     
     const managers = [...new Set(allRoutes.map(r => r.manager).filter(Boolean))].sort();
+    const forwarderOptions = [...allForwarders].sort((a, b) => a.name.localeCompare(b.name));
 
     let stats = {
       totalRoutes: allRoutes.length,
@@ -104,7 +106,14 @@ export async function renderDashboardPage(container) {
           return;
         }
 
-        const routeRates = assignedForwarders.map(f => {
+        // 포워더 필터 적용
+        const displayForwarders = filterForwarder === 'all'
+          ? assignedForwarders
+          : assignedForwarders.filter(f => f.id === filterForwarder);
+
+        if (displayForwarders.length === 0) return; // 해당 포워더가 없는 노선은 건너뜀
+
+        const routeRates = displayForwarders.map(f => {
           const rate = ratesByBidding.find(r => r.route_id === route.id && r.forwarder_id === f.id) || {};
           return { forwarder: f, rate: rate };
         });
@@ -120,7 +129,7 @@ export async function renderDashboardPage(container) {
           routesWithLowest++;
         }
 
-        const rowSpan = assignedForwarders.length;
+        const rowSpan = displayForwarders.length;
 
         routeRates.forEach((item, index) => {
           let html = `<tr class="${index === 0 ? 'route-separator' : ''}">`;
@@ -231,6 +240,13 @@ export async function renderDashboardPage(container) {
             ${managers.map(m => `<option value="${m}" ${filterManager === m ? 'selected' : ''}>${m}</option>`).join('')}
           </select>
         </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <label for="filter-forwarder" style="color: var(--text-secondary); white-space: nowrap;">포워더:</label>
+          <select id="filter-forwarder" class="form-select" style="width: auto;">
+            <option value="all">전체</option>
+            ${forwarderOptions.map(f => `<option value="${f.id}" ${filterForwarder === f.id ? 'selected' : ''}>${f.name}</option>`).join('')}
+          </select>
+        </div>
         <div style="flex-grow: 1;">
           <input type="text" id="search-query" class="search-input" placeholder="🔍 국가 또는 POD 검색..." value="${searchQuery}" style="width: 100%;">
         </div>
@@ -273,6 +289,11 @@ export async function renderDashboardPage(container) {
 
     container.querySelector('#filter-manager').addEventListener('change', (e) => {
       filterManager = e.target.value;
+      render();
+    });
+
+    container.querySelector('#filter-forwarder').addEventListener('change', (e) => {
+      filterForwarder = e.target.value;
       render();
     });
 
