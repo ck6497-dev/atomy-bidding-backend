@@ -439,11 +439,17 @@ if (!process.env.GMAIL_PASS) {
   console.warn('⚠️ WARNING: GMAIL_PASS가 .env에 설정되지 않았습니다. 이메일 발송 기능이 작동하지 않습니다.');
 }
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,       // 587 포트는 STARTTLS 방식 (465는 SSL)
+  family: 4,           // IPv4 강제 사용 (Render 서버 IPv6 차단 우회)
   auth: {
     user: process.env.GMAIL_USER,
     pass: gmailPass,
   },
+  tls: {
+    rejectUnauthorized: false  // 인증서 검증 완화 (Render 환경 호환)
+  }
 });
 
 app.post('/api/send-email', authenticateToken, async (req, res) => {
