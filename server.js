@@ -8,6 +8,10 @@ import pg from 'pg';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import dns from 'dns';
+
+// Render 서버 IPv6 문제 해결: 프로세스 전체 DNS를 IPv4 우선으로 강제
+dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
 
@@ -441,14 +445,13 @@ if (!process.env.GMAIL_PASS) {
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
-  secure: false,       // 587 포트는 STARTTLS 방식 (465는 SSL)
-  family: 4,           // IPv4 강제 사용 (Render 서버 IPv6 차단 우회)
+  secure: false,
   auth: {
     user: process.env.GMAIL_USER,
     pass: gmailPass,
   },
   tls: {
-    rejectUnauthorized: false  // 인증서 검증 완화 (Render 환경 호환)
+    rejectUnauthorized: false
   }
 });
 
