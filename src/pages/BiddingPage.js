@@ -281,7 +281,7 @@ export async function renderBiddingPage(container) {
     const emailTargets = [];
     forwarders.forEach(f => {
       if (f.email) {
-        const emails = f.email.split(/[\n,;]+/).map(e => e.trim()).filter(Boolean);
+        const emails = f.email.replace(/\r/g, '').split(',').flatMap(s => s.split(';')).flatMap(s => s.split('\n')).map(e => e.trim()).filter(e => e.includes('@'));
         emails.forEach(email => {
           emailTargets.push({
             name: f.name,
@@ -337,16 +337,19 @@ export async function renderBiddingPage(container) {
       btn.disabled = true;
       btn.innerText = '발송 중...';
 
-      // H4 수정: 입찰 생성을 먼저 수행한 후 이메일 발송 (중복 생성 방지)
+      // 입찰 생성을 먼저 수행한 후 이메일 발송 (중복 생성 방지)
       try {
         const result = await addBidding(biddingData);
         if (result && result.error) throw new Error(result.error);
 
-        // 입찰 생성 성공 후 이메일 발송 시도
-        try {
-          const emailPromises = emailTargets.map(t => {
+        // 입찰 생성 성공 후 이메일 개별 발송 (하나 실패해도 나머지 계속 시도)
+        let successCount = 0;
+        const failedTargets = [];
+
+        for (const t of emailTargets) {
+          try {
             const targetUrl = `${window.location.origin}/#/rate-entry?email=${encodeURIComponent(t.email)}`;
-            return sendEmailApi(
+            await sendEmailApi(
               t.email,
               `[Atomy] 신규 입찰 안내: ${biddingData.title}`,
               `
@@ -360,12 +363,21 @@ export async function renderBiddingPage(container) {
                 </div>
               `
             );
-          });
-          await Promise.all(emailPromises);
-          showToast('메일이 성공적으로 발송되었으며, 새 입찰이 시작되었습니다.');
-        } catch (emailError) {
-          console.error('메일 발송 실패:', emailError);
-          showToast('입찰은 생성되었으나, 메일 발송 중 오류가 발생했습니다.', 'warning');
+            successCount++;
+          } catch (emailError) {
+            console.error(`메일 발송 실패 (${t.email}):`, emailError);
+            failedTargets.push(t.email);
+          }
+        }
+
+        if (failedTargets.length === 0) {
+          showToast(`메일이 ${successCount}건 모두 발송되었으며, 새 입찰이 시작되었습니다.`);
+        } else if (successCount > 0) {
+          showToast(`입찰이 생성되었습니다. 메일 ${successCount}건 성공, ${failedTargets.length}건 실패.`, 'warning');
+          console.warn('발송 실패한 이메일:', failedTargets);
+        } else {
+          showToast('입찰은 생성되었으나, 모든 메일 발송에 실패했습니다.', 'warning');
+          console.warn('발송 실패한 이메일:', failedTargets);
         }
       } catch (error) {
         console.error('입찰 생성 실패:', error);

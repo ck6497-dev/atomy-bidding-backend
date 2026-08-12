@@ -457,9 +457,13 @@ app.post('/api/send-email', authenticateToken, async (req, res) => {
       subject,
       html,
     });
+    console.log(`✅ 이메일 발송 성공: ${to} | messageId: ${info.messageId}`);
     res.status(200).json({ message: '이메일 발송 완료', messageId: info.messageId });
   } catch (error) {
-    console.error('이메일 발송 오류:', error);
+    console.error(`❌ 이메일 발송 실패 (to: ${to})`);
+    console.error('  에러 코드:', error.code);
+    console.error('  에러 메시지:', error.message);
+    if (error.response) console.error('  SMTP 응답:', error.response);
     res.status(500).json({ error: error.message });
   }
 });
