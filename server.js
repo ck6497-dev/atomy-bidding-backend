@@ -748,6 +748,26 @@ app.put('/api/biddings/:id', authenticateToken, requireAdmin, async (req, res) =
 });
 
 // ─── 운임 API ────────────────────────────────────────────────────────────────
+
+// 노선별 전체 입찰 운임 이력 조회 (차트용)
+app.get('/api/rates/history/:routeId', authenticateToken, async (req, res) => {
+  const { routeId } = req.params;
+  try {
+    const result = await pool.query(`
+      SELECT r.id, r.bidding_id, r.forwarder_id, r.route_id,
+             r.rate_20ft, r.rate_40ft, r.transit_time, r.remark,
+             b.title, b.year, b.month, b.status
+      FROM rates r
+      JOIN biddings b ON r.bidding_id = b.id
+      WHERE r.route_id = $1
+      ORDER BY b.year ASC, b.month ASC
+    `, [routeId]);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/rates', authenticateToken, async (req, res) => {
   const { biddingId, forwarderId } = req.query;
   if (!biddingId) return res.status(400).json({ error: 'biddingId가 필요합니다.' });

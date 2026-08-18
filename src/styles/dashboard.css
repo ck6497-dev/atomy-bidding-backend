@@ -169,3 +169,14 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* 노선 클릭 가능 셀 스타일 */
+.route-clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.route-clickable:hover {
+  background-color: var(--accent-glow) !important;
+  color: var(--accent) !important;
+}

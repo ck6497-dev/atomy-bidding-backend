@@ -5,6 +5,8 @@ import {
 import { downloadCSV, generateCSV } from '../utils/csv.js';
 import { formatCurrency, formatNumber } from '../utils/format.js';
 import { getRegionLabel } from './RoutesPage.js';
+import { openRouteChartModal } from '../components/RouteChartModal.js';
+
 
 // 권역 목록 (대시보드 필터용)
 const REGION_OPTIONS = [
@@ -97,9 +99,9 @@ export async function renderDashboardPage(container) {
         if (assignedForwarders.length === 0) {
           rowsHtml += `
             <tr class="route-separator">
-              <td class="route-group-cell">${route.no}</td>
-              <td class="route-group-cell">${route.country}</td>
-              <td class="route-group-cell">${route.pod}</td>
+              <td class="route-group-cell route-clickable" data-route-id="${route.id}" title="클릭하면 운임 추이 차트를 볼 수 있습니다">${route.no}</td>
+              <td class="route-group-cell route-clickable" data-route-id="${route.id}">${route.country}</td>
+              <td class="route-group-cell route-clickable" data-route-id="${route.id}">${route.pod}</td>
               <td colspan="5" class="empty-cell" style="color: var(--text-muted); text-align: center;">지정된 포워더가 없습니다.</td>
             </tr>
           `;
@@ -136,9 +138,9 @@ export async function renderDashboardPage(container) {
           
           if (index === 0) {
             html += `
-              <td class="route-group-cell" rowspan="${rowSpan}">${route.no}</td>
-              <td class="route-group-cell" rowspan="${rowSpan}">${route.country}</td>
-              <td class="route-group-cell" rowspan="${rowSpan}">${route.pod}</td>
+              <td class="route-group-cell route-clickable" rowspan="${rowSpan}" data-route-id="${route.id}" title="클릭하면 운임 추이 차트를 볼 수 있습니다">${route.no} <span style="font-size:0.65rem;color:var(--text-muted);">📈</span></td>
+              <td class="route-group-cell route-clickable" rowspan="${rowSpan}" data-route-id="${route.id}">${route.country}</td>
+              <td class="route-group-cell route-clickable" rowspan="${rowSpan}" data-route-id="${route.id}">${route.pod}</td>
             `;
           }
           
@@ -304,6 +306,18 @@ export async function renderDashboardPage(container) {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => render(), 300);
     });
+
+    // 노선(No/국가/POD) 셀 클릭 시 운임 추이 차트 모달 오픈
+    const dashTable = container.querySelector('.dashboard-table');
+    if (dashTable) {
+      dashTable.addEventListener('click', (e) => {
+        const cell = e.target.closest('[data-route-id]');
+        if (!cell) return;
+        const routeId = cell.dataset.routeId;
+        const route = filteredRoutes.find(r => r.id === routeId);
+        if (route) openRouteChartModal(route, allForwarders);
+      });
+    }
 
     const downloadBtn = container.querySelector('#btn-download-csv');
     if (downloadBtn) {
