@@ -2,16 +2,12 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
-import nodemailer from 'nodemailer';
+import emailjs from '@emailjs/nodejs';
 import dotenv from 'dotenv';
 import pg from 'pg';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import dns from 'dns';
-
-// Render 서버 IPv6 문제 해결: 프로세스 전체 DNS를 IPv4 우선으로 강제
-dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
 
@@ -436,44 +432,47 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ─── 이메일 발송 엔드포인트 ──────────────────────────────────────────────────
-// C1 수정: GMAIL_PASS 미설정 시 크래시 방지
-const gmailPass = (process.env.GMAIL_PASS || '').replace(/\s+/g, '');
-if (!process.env.GMAIL_PASS) {
-  console.warn('⚠️ WARNING: GMAIL_PASS가 .env에 설정되지 않았습니다. 이메일 발송 기능이 작동하지 않습니다.');
-}
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: gmailPass,
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
-
+// ─── 이메일 발송 엔드포인트 (EmailJS 방식) ────────────────────────────────────
 app.post('/api/send-email', authenticateToken, async (req, res) => {
   const { to, subject, html } = req.body;
   if (!to || !subject || !html) return res.status(400).json({ error: '필수 필드가 누락되었습니다.' });
 
   try {
-    const info = await transporter.sendMail({
-      from: `"Atomy Bidding" <${process.env.GMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`✅ 이메일 발송 성공: ${to} | messageId: ${info.messageId}`);
-    res.status(200).json({ message: '이메일 발송 완료', messageId: info.messageId });
+    // 발신자 = 현재 로그인한 관리자 이메일
+    const senderEmail = req.user.email;
+
+    // CC: 모든 관리자(admin, super_admin) 이메일 목록 (수신자 본인 제외)
+    const adminResult = await pool.query(
+      "SELECT email FROM users WHERE role IN ('admin', 'super_admin')"
+    );
+    const ccEmails = adminResult.rows
+      .map(r => r.email)
+      .filter(e => e !== to)
+      .join(', ');
+
+    const response = await emailjs.send(
+      process.env.EMAILJS_SERVICE_ID,
+      process.env.EMAILJS_TEMPLATE_ID,
+      {
+        to_email: to,
+        subject: subject,
+        html_content: html,
+        name: senderEmail,
+        reply_to: senderEmail,
+        cc_emails: ccEmails,
+      },
+      {
+        publicKey: process.env.EMAILJS_PUBLIC_KEY,
+        privateKey: process.env.EMAILJS_PRIVATE_KEY,
+      }
+    );
+
+    console.log(`✅ 이메일 발송 성공: ${to} | status: ${response.status}`);
+    res.status(200).json({ message: '이메일 발송 완료' });
   } catch (error) {
     console.error(`❌ 이메일 발송 실패 (to: ${to})`);
-    console.error('  에러 코드:', error.code);
-    console.error('  에러 메시지:', error.message);
-    if (error.response) console.error('  SMTP 응답:', error.response);
-    res.status(500).json({ error: error.message });
+    console.error('  에러:', error?.text || error?.message || error);
+    res.status(500).json({ error: error?.text || error?.message || '이메일 발송 실패' });
   }
 });
 
