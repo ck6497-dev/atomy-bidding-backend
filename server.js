@@ -209,9 +209,8 @@ async function initDB() {
     `);
     console.log('✅ DB 초기화 완료 - 모든 테이블이 준비되었습니다.');
     
-    // DB 초기화 후 1회 마감 체크 및 주기적(1분) 자동 체크 시작
+    // DB 초기화 후 1회만 마감 체크 (setInterval 제거 → DB 과부하 방지)
     await checkAndCloseBiddings();
-    setInterval(checkAndCloseBiddings, 60000);
   } catch (err) {
     console.error('❌ DB 초기화 실패:', err);
   } finally {
@@ -689,6 +688,8 @@ app.post('/api/routes/bulk', authenticateToken, requireAdmin, async (req, res) =
 // ─── 입찰 API ────────────────────────────────────────────────────────────────
 app.get('/api/biddings', authenticateToken, async (req, res) => {
   try {
+    // 조회 시마다 마감 기한 지난 입찰 자동 처리 (setInterval 대체)
+    await checkAndCloseBiddings();
     const result = await pool.query('SELECT * FROM biddings ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (error) {
