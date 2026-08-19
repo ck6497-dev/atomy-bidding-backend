@@ -138,7 +138,7 @@ export async function renderDashboardPage(container) {
           
           if (index === 0) {
             html += `
-              <td class="route-group-cell route-clickable" rowspan="${rowSpan}" data-route-id="${route.id}" title="클릭하면 운임 추이 차트를 볼 수 있습니다">${route.no} <span style="font-size:0.65rem;color:var(--text-muted);">📈</span></td>
+              <td class="route-group-cell route-clickable" rowspan="${rowSpan}" data-route-id="${route.id}" title="클릭하면 운임 추이 차트를 볼 수 있습니다">${route.no}</td>
               <td class="route-group-cell route-clickable" rowspan="${rowSpan}" data-route-id="${route.id}">${route.country}</td>
               <td class="route-group-cell route-clickable" rowspan="${rowSpan}" data-route-id="${route.id}">${route.pod}</td>
             `;
