@@ -1,4 +1,4 @@
-import { getRoutes, addRoute, updateRoute, deleteRoute, bulkAddRoutes, generateId } from '../store.js';
+import { getRoutes, addRoute, updateRoute, deleteRoute, bulkAddRoutes, generateId, isSuperAdmin } from '../store.js';
 import { showModal, closeModal } from '../components/Modal.js';
 import { showToast } from '../components/Toast.js';
 import { parseCSV, generateCSV, downloadCSV, readFileAsText } from '../utils/csv.js';
@@ -29,15 +29,19 @@ function regionSelectOptions(selectedValue = '') {
 export async function renderRoutesPage(container) {
   async function render() {
     const routes = await getRoutes();
-    
+    const canEdit = isSuperAdmin();
+
     container.innerHTML = `
       <div class="page-header">
         <h2>🗺️ 노선 관리</h2>
         <div class="header-actions">
-          <button id="btn-add-route" class="btn btn-primary">노선 추가</button>
-          <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
-          <button id="btn-upload-csv" class="btn btn-outline">CSV 업로드</button>
+          ${canEdit ? `
+            <button id="btn-add-route" class="btn btn-primary">노선 추가</button>
+            <input type="file" id="csv-upload-input" accept=".csv" style="display: none;">
+            <button id="btn-upload-csv" class="btn btn-outline">CSV 업로드</button>
+          ` : ''}
           <button id="btn-download-csv" class="btn btn-outline">CSV 다운로드</button>
+          ${!canEdit ? `<span style="font-size:var(--font-xs);color:var(--text-muted);align-self:center;">👁️ 조회 전용 (편집은 최고관리자만 가능)</span>` : ''}
         </div>
       </div>
       
@@ -50,7 +54,7 @@ export async function renderRoutesPage(container) {
               <th>POD</th>
               <th>권역</th>
               <th>담당자</th>
-              <th>액션</th>
+              ${canEdit ? '<th>액션</th>' : ''}
             </tr>
           </thead>
           <tbody>
@@ -61,60 +65,61 @@ export async function renderRoutesPage(container) {
                 <td>${route.pod}</td>
                 <td>${route.region ? `<span class="badge badge-preparing" style="font-weight:500;">${getRegionLabel(route.region)}</span>` : '<span style="color:var(--text-muted);">-</span>'}</td>
                 <td>${route.manager || ''}</td>
+                ${canEdit ? `
                 <td>
                   <button class="btn btn-sm btn-outline btn-edit" data-id="${route.id}">편집</button>
                   <button class="btn btn-sm btn-danger btn-delete" data-id="${route.id}">삭제</button>
-                </td>
+                </td>` : ''}
               </tr>
-            `).join('') : `<tr><td colspan="6" style="text-align:center;">등록된 노선이 없습니다.</td></tr>`}
+            `).join('') : `<tr><td colspan="${canEdit ? 6 : 5}" style="text-align:center;">등록된 노선이 없습니다.</td></tr>`}
           </tbody>
         </table>
       </div>
     `;
 
-    // Events
-    container.querySelector('#btn-add-route').addEventListener('click', () => {
-      openRouteModal();
-    });
+    // Events — 편집 버튼은 최고관리자만
+    if (canEdit) {
+      container.querySelector('#btn-add-route').addEventListener('click', () => {
+        openRouteModal();
+      });
 
-    container.querySelector('#btn-upload-csv').addEventListener('click', () => {
-      container.querySelector('#csv-upload-input').click();
-    });
+      container.querySelector('#btn-upload-csv').addEventListener('click', () => {
+        container.querySelector('#csv-upload-input').click();
+      });
 
-    container.querySelector('#csv-upload-input').addEventListener('change', async (e) => {
-      if (e.target.files.length > 0) {
-        try {
-          const file = e.target.files[0];
-          const text = await readFileAsText(file);
-          const data = parseCSV(text);
-          if (data && data.length > 0) {
-            const routesToAdd = data
-              .filter(row => row['No'] && row['국가'] && row['POD'])
-              .map(row => {
-                // CSV 권역 컬럼: 한글 이름 또는 value 모두 허용
-                const regionRaw = row['권역'] || '';
-                const regionMatch = REGIONS.find(r => r.label === regionRaw.trim() || r.value === regionRaw.trim());
-                return {
-                  no: row['No'],
-                  country: row['국가'],
-                  pod: row['POD'],
-                  region: regionMatch ? regionMatch.value : '',
-                  manager: row['담당자'] || ''
-                };
-              });
-            
-            if (routesToAdd.length > 0) {
-              await bulkAddRoutes(routesToAdd);
-              showToast(`CSV 업로드 완료 (${routesToAdd.length}건)`);
-              await render();
+      container.querySelector('#csv-upload-input').addEventListener('change', async (e) => {
+        if (e.target.files.length > 0) {
+          try {
+            const file = e.target.files[0];
+            const text = await readFileAsText(file);
+            const data = parseCSV(text);
+            if (data && data.length > 0) {
+              const routesToAdd = data
+                .filter(row => row['No'] && row['국가'] && row['POD'])
+                .map(row => {
+                  const regionRaw = row['권역'] || '';
+                  const regionMatch = REGIONS.find(r => r.label === regionRaw.trim() || r.value === regionRaw.trim());
+                  return {
+                    no: row['No'],
+                    country: row['국가'],
+                    pod: row['POD'],
+                    region: regionMatch ? regionMatch.value : '',
+                    manager: row['담당자'] || ''
+                  };
+                });
+              if (routesToAdd.length > 0) {
+                await bulkAddRoutes(routesToAdd);
+                showToast(`CSV 업로드 완료 (${routesToAdd.length}건)`);
+                await render();
+              }
             }
+          } catch (err) {
+            showToast('CSV 처리 중 오류 발생', 'error');
           }
-        } catch (err) {
-          showToast('CSV 처리 중 오류 발생', 'error');
         }
-      }
-      e.target.value = ''; // Reset
-    });
+        e.target.value = '';
+      });
+    }
 
     container.querySelector('#btn-download-csv').addEventListener('click', async () => {
       const routes = await getRoutes();

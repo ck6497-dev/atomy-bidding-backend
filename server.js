@@ -83,7 +83,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 30000,  // Neon DB 슬립 해제 대기 시간 (30초)
 });
 
 // ─── DB 초기화: 테이블 자동 생성 ─────────────────────────────────────────────
@@ -242,6 +242,13 @@ function requireSuperAdmin(req, res, next) {
 function requireAdmin(req, res, next) {
   if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
+  }
+  next();
+}
+
+function requireSuperAdmin(req, res, next) {
+  if (req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: '최고 관리자 권한이 필요합니다.' });
   }
   next();
 }
@@ -622,7 +629,7 @@ app.get('/api/routes', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/routes', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/routes', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { no, country, pod, manager, region } = req.body;
   try {
     const id = crypto.randomUUID();
@@ -636,7 +643,7 @@ app.post('/api/routes', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-app.put('/api/routes/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/routes/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
   const { no, country, pod, manager, region } = req.body;
   try {
@@ -650,7 +657,7 @@ app.put('/api/routes/:id', authenticateToken, requireAdmin, async (req, res) => 
   }
 });
 
-app.delete('/api/routes/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/routes/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     await pool.query('DELETE FROM routes WHERE id = $1', [id]);
@@ -660,7 +667,7 @@ app.delete('/api/routes/:id', authenticateToken, requireAdmin, async (req, res) 
   }
 });
 
-app.post('/api/routes/bulk', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/routes/bulk', authenticateToken, requireSuperAdmin, async (req, res) => {
   // H1 수정: 프론트엔드가 { routes: [...] } 형태로 보내는 것도 지원
   const routes = Array.isArray(req.body) ? req.body : (Array.isArray(req.body.routes) ? req.body.routes : null);
   if (!Array.isArray(routes)) return res.status(400).json({ error: '배열 형식이 필요합니다.' });

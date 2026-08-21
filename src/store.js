@@ -291,4 +291,9 @@ export function isForwarder() {
   return session?.role === 'forwarder';
 }
 
+export function isSuperAdmin() {
+  const session = getSession();
+  return session?.role === 'super_admin';
+}
+
 // L2 수정: Legacy 호환 함수 제거 (DB로 전환 완료)
