@@ -246,13 +246,6 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-function requireSuperAdmin(req, res, next) {
-  if (req.user.role !== 'super_admin') {
-    return res.status(403).json({ error: '최고 관리자 권한이 필요합니다.' });
-  }
-  next();
-}
-
 // ─── 이메일 파싱 및 포워더 매칭 헬퍼 함수 ────────────────────────────────────
 function parseEmails(emailStr) {
   if (!emailStr) return [];
