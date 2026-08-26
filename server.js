@@ -495,7 +495,7 @@ app.get('/api/forwarders', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/forwarders', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/forwarders', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { name, email, assigned_routes } = req.body;
   if (!name) return res.status(400).json({ error: '이름을 입력해주세요.' });
 
@@ -532,7 +532,7 @@ app.post('/api/forwarders', authenticateToken, requireAdmin, async (req, res) =>
   }
 });
 
-app.put('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/forwarders/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
   const { name, email, assigned_routes } = req.body;
 
@@ -589,7 +589,7 @@ app.put('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, res)
   }
 });
 
-app.delete('/api/forwarders/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/forwarders/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
   try {

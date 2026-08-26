@@ -1,16 +1,18 @@
-import { getForwarders, addForwarder, updateForwarder, deleteForwarder, getRoutes } from '../store.js';
+import { getForwarders, addForwarder, updateForwarder, deleteForwarder, getRoutes, isSuperAdmin } from '../store.js';
 import { showModal, closeModal } from '../components/Modal.js';
 import { showToast } from '../components/Toast.js';
 
 export async function renderForwardersPage(container) {
   async function render() {
     const forwarders = await getForwarders();
-    
+    const canEdit = isSuperAdmin();
+
     container.innerHTML = `
       <div class="page-header">
         <h2>🏢 포워더 관리</h2>
         <div class="header-actions">
-          <button id="btn-add-forwarder" class="btn btn-primary">포워더 추가</button>
+          ${canEdit ? `<button id="btn-add-forwarder" class="btn btn-primary">포워더 추가</button>` : ''}
+          ${!canEdit ? `<span style="font-size:var(--font-xs);color:var(--text-muted);align-self:center;">👁️ 조회 전용 (편집은 최고관리자만 가능)</span>` : ''}
         </div>
       </div>
       
@@ -30,50 +32,53 @@ export async function renderForwardersPage(container) {
                 </div>
                 <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">지정된 노선 수: <strong style="color: var(--text-primary);">${f.assigned_routes ? f.assigned_routes.length : 0}</strong>개</p>
               </div>
+              ${canEdit ? `
               <div class="card-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                 <button class="btn btn-sm btn-outline btn-assign" data-id="${f.id}">노선 지정</button>
                 <button class="btn btn-sm btn-outline btn-edit" data-id="${f.id}">편집</button>
                 <button class="btn btn-sm btn-danger btn-delete" data-id="${f.id}">삭제</button>
-              </div>
+              </div>` : ''}
             </div>
           `;
         }).join('') : '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-secondary);">등록된 포워더가 없습니다.</div>'}
       </div>
     `;
 
-    // Events
-    container.querySelector('#btn-add-forwarder').addEventListener('click', () => {
-      openForwarderModal();
-    });
-
-    container.querySelectorAll('.btn-edit').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
-        const allForwarders = await getForwarders();
-        const forwarder = allForwarders.find(f => f.id === id);
-        if (forwarder) openForwarderModal(forwarder);
+    // Events — 편집 버튼은 최고관리자만
+    if (canEdit) {
+      container.querySelector('#btn-add-forwarder').addEventListener('click', () => {
+        openForwarderModal();
       });
-    });
 
-    container.querySelectorAll('.btn-assign').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
-        const allForwarders = await getForwarders();
-        const forwarder = allForwarders.find(f => f.id === id);
-        if (forwarder) openAssignModal(forwarder);
+      container.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.target.dataset.id;
+          const allForwarders = await getForwarders();
+          const forwarder = allForwarders.find(f => f.id === id);
+          if (forwarder) openForwarderModal(forwarder);
+        });
       });
-    });
 
-    container.querySelectorAll('.btn-delete').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
-        if (confirm('정말로 이 포워더를 삭제하시겠습니까? (등록된 영업사원 계정도 함께 삭제됩니다)')) {
-          await deleteForwarder(id);
-          showToast('삭제되었습니다.');
-          await render();
-        }
+      container.querySelectorAll('.btn-assign').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.target.dataset.id;
+          const allForwarders = await getForwarders();
+          const forwarder = allForwarders.find(f => f.id === id);
+          if (forwarder) openAssignModal(forwarder);
+        });
       });
-    });
+
+      container.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.target.dataset.id;
+          if (confirm('정말로 이 포워더를 삭제하시겠습니까? (등록된 영업사원 계정도 함께 삭제됩니다)')) {
+            await deleteForwarder(id);
+            showToast('삭제되었습니다.');
+            await render();
+          }
+        });
+      });
+    }
   }
 
   function openForwarderModal(forwarder = null) {
