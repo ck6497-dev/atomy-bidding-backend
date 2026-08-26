@@ -228,6 +228,22 @@ export async function renderRateEntryPage(container) {
     const saveBtn = container.querySelector('#btn-save');
     if (saveBtn) {
       saveBtn.addEventListener('click', async () => {
+        // ★ 버그 수정: blur보다 click이 먼저 실행될 수 있으므로
+        //   저장 전에 DOM에서 현재 input 값을 강제로 읽어 editGridData에 동기화
+        if (isEditing && editGridData && gridContainer) {
+          const allInputs = gridContainer.querySelectorAll('.grid-cell-input');
+          allInputs.forEach(input => {
+            const rowIndex = parseInt(input.dataset.row, 10);
+            const key = input.dataset.key;
+            if (rowIndex >= 0 && key && editGridData[rowIndex] !== undefined) {
+              const value = input.type === 'number'
+                ? (input.value === '' ? '' : Number(input.value))
+                : input.value;
+              editGridData[rowIndex][key] = value;
+            }
+          });
+        }
+
         const numericFields = [
           { key: 'rate20ft', label: '20FT' },
           { key: 'rate40ft', label: '40FT' },
