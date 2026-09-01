@@ -426,23 +426,23 @@ export async function openRouteChartModal(route, allForwarders) {
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.98)',
-              borderColor: isDark ? '#475569' : '#cbd5e1',
+              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.97)' : 'rgba(255, 255, 255, 0.98)',
+              borderColor: isDark ? '#475569' : '#94a3b8',
               borderWidth: 2,
               titleColor: isDark ? '#f8fafc' : '#0f172a',
-              titleFont: { size: 16, weight: '900', family: "inherit" },
-              titleSpacing: 10,
-              bodyColor: isDark ? '#e2e8f0' : '#1e293b',
-              bodyFont: { size: 14.5, weight: '700', family: "inherit" },
-              bodySpacing: 8,
-              footerColor: isDark ? '#94a3b8' : '#64748b',
-              footerFont: { size: 14, weight: '700', family: "inherit" },
-              footerSpacing: 8,
-              padding: 20,
-              boxPadding: 8,
-              caretSize: 8,
-              cornerRadius: 14,
-              boxShadow: '0 20px 40px rgba(0,0,0,0.35)',
+              titleFont: { size: 20, weight: '900', family: "inherit" },
+              titleSpacing: 14,
+              bodyColor: isDark ? '#e2e8f0' : '#0f172a',
+              bodyFont: { size: 17, weight: '800', family: "inherit" },
+              bodySpacing: 10,
+              footerColor: isDark ? '#94a3b8' : '#475569',
+              footerFont: { size: 16, weight: '700', family: "inherit" },
+              footerSpacing: 10,
+              padding: 24,
+              boxPadding: 10,
+              caretSize: 10,
+              cornerRadius: 16,
+              boxShadow: '0 25px 50px rgba(0,0,0,0.4)',
               callbacks: {
                 title: items => `📅 ${items[0].label}월 운임 동향 (${currentFt.toUpperCase()} 기준)`,
                 label: item => {
@@ -459,7 +459,7 @@ export async function openRouteChartModal(route, allForwarders) {
                   if (!mm || mm.min == null || mm.max == null || mm.min === mm.max) return [];
                   const spread = mm.max - mm.min;
                   return [
-                    '─────────────────────────',
+                    '─────────────────────────────',
                     `📊 포워더 견적 격차 (Spread): $${spread.toLocaleString()}`,
                     `   (최저 $${mm.min.toLocaleString()} ~ 최고 $${mm.max.toLocaleString()})`
                   ];
@@ -470,13 +470,14 @@ export async function openRouteChartModal(route, allForwarders) {
           scales: {
             x: {
               grid: { color: gridC },
-              ticks: { color: lblC, font: { size: 13, weight: '800', family: "inherit" } }
+              ticks: { color: lblC, font: { size: 15, weight: '800', family: "inherit" }, padding: 8 }
             },
             y: {
               grid: { color: gridC },
               ticks: {
                 color: lblC,
-                font: { size: 13, weight: '800', family: "inherit" },
+                font: { size: 15, weight: '800', family: "inherit" },
+                padding: 8,
                 callback: v => '$' + Number(v).toLocaleString()
               }
             }
