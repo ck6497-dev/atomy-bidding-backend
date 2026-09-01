@@ -6,6 +6,7 @@ import { downloadCSV, generateCSV } from '../utils/csv.js';
 import { formatCurrency, formatNumber } from '../utils/format.js';
 import { getRegionLabel } from './RoutesPage.js';
 import { openRouteChartModal } from '../components/RouteChartModal.js';
+import { showMomComparisonModal } from '../components/MomComparisonModal.js';
 
 
 // 권역 목록 (대시보드 필터용)
@@ -93,13 +94,13 @@ export async function renderDashboardPage(container) {
       stats.completionRate = expectedRates ? Math.round((ratesByBidding.length / expectedRates) * 100) : 0;
 
       // ── [전월 대비 운임 변동률 계산] ──
-      // 1단계: 직전 회차 찾기
+      let prevRatesData = [];
       const currentIdx = sortedBiddings.findIndex(b => b.id === currentBidding.id);
       const prevBidding = (currentIdx !== -1 && currentIdx + 1 < sortedBiddings.length) ? sortedBiddings[currentIdx + 1] : null;
 
       if (prevBidding) {
         try {
-          const prevRatesData = await getAllRates(prevBidding.id);
+          prevRatesData = await getAllRates(prevBidding.id);
 
           // 1차: 노선별 평균 운임 계산 (40FT 기준)
           const currentRouteAvgs = [];
@@ -293,8 +294,11 @@ export async function renderDashboardPage(container) {
           <div class="label">참여 포워더 수</div>
           <div class="value">${stats.participatingForwarders}</div>
         </div>
-        <div class="stat-card">
-          <div class="label">운임 변동률 (전월대비)</div>
+        <div id="card-mom-trend" class="stat-card" style="cursor: pointer; transition: all 0.15s; position: relative;" title="클릭하면 전월 대비 노선별 평균 운임 변동 비교 원장 팝업이 열립니다">
+          <div class="label" style="display: flex; align-items: center; justify-content: space-between;">
+            <span>운임 변동률 (전월대비, 40FT)</span>
+            <span style="font-size: 11px; background: rgba(99,102,241,0.12); color: var(--accent); padding: 2px 7px; border-radius: 6px; font-weight: 800; border: 1px solid rgba(99,102,241,0.25);">원장보기 🔍</span>
+          </div>
           <div class="value" style="color: ${stats.momColor}; font-size: 1.65rem; font-weight: 900; letter-spacing: -0.02em;">${stats.momText}</div>
           <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px; font-weight: 500;">${stats.momSub}</div>
         </div>
@@ -393,6 +397,20 @@ export async function renderDashboardPage(container) {
         const routeId = cell.dataset.routeId;
         const route = filteredRoutes.find(r => r.id === routeId);
         if (route) openRouteChartModal(route, allForwarders);
+      });
+    }
+
+    // 운임 변동률 카드 클릭 시 전월 대비 노선별 비교 원장 모달 오픈
+    const momCard = container.querySelector('#card-mom-trend');
+    if (momCard && currentBidding) {
+      momCard.addEventListener('click', () => {
+        showMomComparisonModal({
+          currentBidding,
+          prevBidding,
+          allRoutes,
+          currentRates: ratesByBidding,
+          prevRates: prevRatesData
+        });
       });
     }
 
