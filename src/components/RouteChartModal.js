@@ -159,6 +159,61 @@ export async function openRouteChartModal(route, allForwarders) {
               font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif;
             "></div>
           </div>
+
+          <!-- 4-1. 물류 물량 시뮬레이터 (Volume Buying Power Simulator) -->
+          <div id="rc-simulator" style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:18px;padding:20px 24px;box-shadow:0 6px 24px rgba(0,0,0,0.06);display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:stretch;">
+            
+            <!-- 좌측: 슬라이더 컨트롤 -->
+            <div style="display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#10b981;display:flex;align-items:center;justify-content:center;font-size:1.3rem;">
+                  🎛️
+                </div>
+                <div>
+                  <div style="font-size:15px;font-weight:900;color:var(--text-primary);">
+                    물류 물량 시뮬레이터 (Volume Buying Power Simulator)
+                  </div>
+                  <div style="font-size:12.5px;color:var(--text-secondary);margin-top:2px;font-weight:500;">
+                    연간 선적 컨테이너 물량을 조절하여 시장 평균가 대비 예상 비용 절감액 산출
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:var(--bg-secondary);border:1px solid var(--border-color);padding:14px 18px;border-radius:14px;display:flex;flex-direction:column;gap:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;font-weight:800;">
+                  <span style="color:var(--text-primary);">연간 물동량 설정:</span>
+                  <span id="rc-sim-vol-display" style="color:#10b981;font-size:16.5px;font-weight:900;font-variant-numeric:tabular-nums;">2,000 FEU</span>
+                </div>
+                <input id="rc-sim-slider" type="range" min="100" max="10000" step="100" value="2000" style="width:100%;accent-color:#10b981;cursor:pointer;height:6px;border-radius:3px;" />
+                <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-secondary);font-weight:700;">
+                  <span id="rc-sim-min-tick">100 FEU</span>
+                  <span id="rc-sim-mid-tick">5,000 FEU</span>
+                  <span id="rc-sim-max-tick">10,000 FEU</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 우측: 실시간 예상 절감액 카드 -->
+            <div style="background:var(--bg-secondary);border:1.5px solid var(--border-color);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between;">
+              <div>
+                <span style="font-size:12.5px;color:var(--text-secondary);font-weight:800;letter-spacing:0.02em;">
+                  시뮬레이션 예상 수주 성과
+                </span>
+                <div id="rc-sim-saving-display" style="font-size:2.2rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:6px;">
+                  $1,018,000
+                </div>
+                <div id="rc-sim-sub-desc" style="font-size:12.5px;color:var(--text-secondary);margin-top:4px;font-weight:600;">
+                  시장 평균 대비 연간 절감 기대치
+                </div>
+              </div>
+
+              <div style="margin-top:12px;font-size:12px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);color:#10b981;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:6px;font-weight:800;">
+                <span>✔</span>
+                <span>임원보고용 바잉파워 입증 자료 자동 생성</span>
+              </div>
+            </div>
+
+          </div>
         </div>
 
         <!-- 5. 원장 데이터 테이블 뷰 -->
@@ -669,6 +724,40 @@ export async function openRouteChartModal(route, allForwarders) {
         </div>
       </div>
     `;
+
+    // 시뮬레이터 실시간 계산 동기화
+    updateSimulator(avgSpread);
+  }
+
+  let simVolume = 2000;
+  let currentSimSpread = 0;
+
+  function updateSimulator(avgSpread) {
+    if (typeof avgSpread === 'number') {
+      currentSimSpread = avgSpread;
+    }
+    const volDisplay = document.getElementById('rc-sim-vol-display');
+    const savingDisplay = document.getElementById('rc-sim-saving-display');
+    const subDesc = document.getElementById('rc-sim-sub-desc');
+    const minTick = document.getElementById('rc-sim-min-tick');
+    const midTick = document.getElementById('rc-sim-mid-tick');
+    const maxTick = document.getElementById('rc-sim-max-tick');
+    const slider = document.getElementById('rc-sim-slider');
+
+    if (!volDisplay || !savingDisplay) return;
+
+    const unit = currentFt === '20ft' ? 'TEU' : 'FEU';
+    volDisplay.textContent = Number(simVolume).toLocaleString() + ' ' + unit;
+    if (minTick) minTick.textContent = '100 ' + unit;
+    if (midTick) midTick.textContent = '5,000 ' + unit;
+    if (maxTick) maxTick.textContent = '10,000 ' + unit;
+    if (slider) slider.value = simVolume;
+
+    const totalSavings = Math.round(currentSimSpread * simVolume);
+    savingDisplay.textContent = '$' + totalSavings.toLocaleString();
+    if (subDesc) {
+      subDesc.textContent = `시장 평균 대비 연간 절감 기대치 (${unit}당 $${currentSimSpread.toLocaleString()} 절감)`;
+    }
   }
 
   function renderTable() {
@@ -824,6 +913,15 @@ export async function openRouteChartModal(route, allForwarders) {
     document.getElementById('rc-ft20').style.color = 'var(--text-secondary)';
     showContent();
   });
+
+  // 슬라이더 이벤트 등록
+  const sliderEl = document.getElementById('rc-sim-slider');
+  if (sliderEl) {
+    sliderEl.addEventListener('input', (e) => {
+      simVolume = Number(e.target.value);
+      updateSimulator();
+    });
+  }
 
   const chipsEl = document.getElementById('rc-chips');
   if (chipsEl) {
