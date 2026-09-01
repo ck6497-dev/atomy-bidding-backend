@@ -103,10 +103,10 @@ export async function openRouteChartModal(route, allForwarders) {
         <div style="display:flex;align-items:center;gap:10px;border-left:1px solid var(--border-color);padding-left:20px;">
           <span style="font-size:12px;font-weight:700;color:var(--text-muted);">컨테이너 규격:</span>
           <div style="display:flex;gap:4px;background:var(--bg-primary);border-radius:12px;padding:4px;border:1px solid var(--border-color);">
-            <button id="rc-ft20" style="padding:6px 18px;border-radius:8px;border:none;cursor:pointer;font-size:var(--font-sm);font-weight:800;background:var(--accent);color:#fff;transition:all 0.15s;">
+            <button id="rc-ft20" style="padding:6px 18px;border-radius:8px;border:none;cursor:pointer;font-size:var(--font-sm);font-weight:800;background:transparent;color:var(--text-secondary);transition:all 0.15s;">
               20FT
             </button>
-            <button id="rc-ft40" style="padding:6px 18px;border-radius:8px;border:none;cursor:pointer;font-size:var(--font-sm);font-weight:800;background:transparent;color:var(--text-secondary);transition:all 0.15s;">
+            <button id="rc-ft40" style="padding:6px 18px;border-radius:8px;border:none;cursor:pointer;font-size:var(--font-sm);font-weight:800;background:var(--accent);color:#fff;transition:all 0.15s;">
               40FT
             </button>
           </div>
@@ -158,7 +158,7 @@ export async function openRouteChartModal(route, allForwarders) {
 
   document.body.appendChild(overlay);
 
-  let currentFt = '20ft';
+  let currentFt = '40ft';
   let activeTab = 'chart';
   let chartInstance = null;
   let historyData = [];
