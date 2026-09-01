@@ -62,7 +62,7 @@ export async function openRouteChartModal(route, allForwarders) {
               </span>
             </div>
             <div style="font-size:13.5px;color:var(--text-secondary);margin-top:4px;font-weight:600;">
-              입찰 회차별 포워더 견적 스펙트럼 & 자사 최저 낙찰가 벤치마킹 대시보드
+              입찰 회차별 포워더 견적 스펙트럼 & 최저 입찰가 벤치마킹 대시보드
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@ export async function openRouteChartModal(route, allForwarders) {
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px;background:var(--bg-surface);border:1px solid var(--border-color);padding:12px 22px;border-radius:14px;font-size:13.5px;margin-bottom:16px;">
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:22px;height:6px;background:#10b981;border-radius:3px;display:inline-block;box-shadow:0 0 10px rgba(16,185,129,0.7);"></span>
-              <strong style="color:#10b981;font-size:14.5px;">★ 자사 최저 낙찰가 (Bold Emerald)</strong>
+              <strong style="color:#10b981;font-size:14.5px;">★ 최저 입찰가 (Bold Emerald)</strong>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:20px;height:12px;background:rgba(148,163,184,0.3);border-radius:3px;display:inline-block;border:1px dashed rgba(100,116,139,0.6);"></span>
@@ -380,9 +380,9 @@ export async function openRouteChartModal(route, allForwarders) {
       tension: 0.3,
     };
 
-    // 최저 낙찰가 초록 라인
+    // 최저 입찰가 초록 라인
     const minLine = {
-      label: '★ 자사 최저 낙찰가',
+      label: '★ 최저 입찰가',
       data: minMaxArr.map(d => d.min),
       borderColor: '#10b981',
       backgroundColor: '#10b98125',
@@ -438,7 +438,7 @@ export async function openRouteChartModal(route, allForwarders) {
                   if (item.dataset.label && item.dataset.label.startsWith('_')) return null;
                   const v = item.raw;
                   if (v == null) return `   ${item.dataset.label}: 미제출`;
-                  const isMin = item.dataset.label === '★ 자사 최저 낙찰가';
+                  const isMin = item.dataset.label === '★ 최저 입찰가';
                   const icon = isMin ? '🟢' : '  ';
                   return `${icon} ${item.dataset.label}: $${Number(v).toLocaleString()}`;
                 },
@@ -527,13 +527,13 @@ export async function openRouteChartModal(route, allForwarders) {
     statsEl.innerHTML = `
       <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:4px solid #10b981;border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
         <div style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;font-weight:800;">
-          최근 최저 낙찰가 (${lastPeriod.label}월)
+          최근 최저 입찰가 (${lastPeriod.label}월)
         </div>
         <div style="font-size:2.1rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
           $${lastMM.min.toLocaleString()}
         </div>
         <div style="font-size:13.5px;color:var(--text-primary);margin-top:5px;font-weight:700;">
-          수주: <strong style="color:var(--text-primary);font-size:14.5px;">${minFw ? minFw.name : '-'}</strong>
+          최저가 제출: <strong style="color:var(--text-primary);font-size:14.5px;">${minFw ? minFw.name : '-'}</strong>
         </div>
       </div>
 
@@ -569,7 +569,7 @@ export async function openRouteChartModal(route, allForwarders) {
           ${topWinnerObj ? topWinnerObj.name : '-'}
         </div>
         <div style="font-size:13.5px;color:var(--text-primary);margin-top:5px;font-weight:700;">
-          총 ${periods.length}회차 중 <strong style="color:var(--accent);font-size:14.5px;">${topWinnerEntry ? topWinnerEntry[1] : 0}회</strong> 최저 견적 수주
+          총 ${periods.length}회차 중 <strong style="color:var(--accent);font-size:14.5px;">${topWinnerEntry ? topWinnerEntry[1] : 0}회</strong> 최저 견적 제출
         </div>
       </div>
     `;
