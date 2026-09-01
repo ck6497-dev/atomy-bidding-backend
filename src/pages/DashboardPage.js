@@ -299,11 +299,11 @@ export async function renderDashboardPage(container) {
         </div>
         <div id="card-mom-trend" class="stat-card" style="cursor: pointer; transition: all 0.15s; position: relative;" title="클릭하면 전월 대비 노선별 평균 운임 변동 비교 원장 팝업이 열립니다">
           <div class="label" style="display: flex; align-items: center; justify-content: space-between;">
-            <span>운임 변동률 (전월대비, 40FT)</span>
-            <span style="font-size: 11px; background: rgba(99,102,241,0.12); color: var(--accent); padding: 2px 7px; border-radius: 6px; font-weight: 800; border: 1px solid rgba(99,102,241,0.25);">원장보기 🔍</span>
+            <span>평균제출가 변동률 (전월대비, 40FT)</span>
+            <span style="font-size: 11.5px; background: rgba(99,102,241,0.12); color: var(--accent); padding: 2px 8px; border-radius: 6px; font-weight: 800; border: 1px solid rgba(99,102,241,0.25);">원장보기 🔍</span>
           </div>
           <div class="value" style="color: ${stats.momColor}; font-size: 1.65rem; font-weight: 900; letter-spacing: -0.02em;">${stats.momText}</div>
-          <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px; font-weight: 500;">${stats.momSub}</div>
+          <div style="font-size: 13.5px; color: var(--text-secondary); margin-top: 6px; font-weight: 700; letter-spacing: -0.01em;">${stats.momSub}</div>
         </div>
         <div class="stat-card">
           <div class="label">최저가 평균 (20FT)</div>

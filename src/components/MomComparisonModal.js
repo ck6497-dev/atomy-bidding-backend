@@ -52,7 +52,7 @@ export function showMomComparisonModal({ currentBidding, prevBidding, allRoutes,
           </div>
           <div>
             <div style="font-size: 17px; font-weight: 900; color: var(--text-primary);">
-              전월 대비 노선별 평균 운임 변동 비교 원장
+              전월 대비 노선별 평균제출가 변동 비교 원장
             </div>
             <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">
               ${prevLabel} (${prevBidding ? prevBidding.title : '-'}) ➔ ${curLabel} (${currentBidding.title})
