@@ -84,7 +84,7 @@ export async function openRouteChartModal(route, allForwarders) {
       </div>
 
       <!-- 메인 스크롤 콘텐츠 영역 -->
-      <div style="flex:1;overflow-y:auto;padding:20px 30px;min-height:0;display:flex;flex-direction:column;gap:18px;overscroll-behavior:contain;">
+      <div style="flex:1;overflow-y:auto;padding:20px 30px 65px 30px;min-height:0;display:flex;flex-direction:column;gap:18px;overscroll-behavior:contain;">
         
         <!-- 로딩 표시 -->
         <div id="rc-loading" style="display:flex;align-items:center;justify-content:center;height:450px;color:var(--text-secondary);font-size:var(--font-lg);gap:10px;font-weight:700;">
@@ -140,7 +140,7 @@ export async function openRouteChartModal(route, allForwarders) {
           </div>
 
           <!-- 캔버스 영역 및 HTML 커스텀 툴팁 컨테이너 -->
-          <div id="rc-canvas-container" style="position:relative;height:480px;width:100%;">
+          <div id="rc-canvas-container" style="position:relative;height:400px;width:100%;">
             <canvas id="rc-canvas"></canvas>
             
             <!-- HTML 커스텀 툴팁 (크기 제한 없는 고선명 대형 툴팁) -->
