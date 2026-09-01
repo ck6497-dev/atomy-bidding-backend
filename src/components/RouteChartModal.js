@@ -397,16 +397,20 @@ export async function openRouteChartModal(route, allForwarders) {
       const isHovered = hoveredFid === f.id;
       const hasHoverTarget = hoveredFid !== null;
 
-      let borderWidth = 2.5;
-      let pointRadius = 4;
+      // 평상시: 슬림한 선(1.6px) & 표식 없음(pointRadius: 0)
+      let borderWidth = 1.6;
+      let pointRadius = 0;
+      let strokeColor = color;
 
       if (hasHoverTarget) {
         if (isHovered) {
           borderWidth = 4.5;
-          pointRadius = 7.5;
+          pointRadius = 7.5; // 호버 시에만 굵은 선과 선명한 마커 표식 표시!
+          strokeColor = color;
         } else {
-          borderWidth = 1.2;
-          pointRadius = 1;
+          borderWidth = 1.0;
+          pointRadius = 0;
+          strokeColor = color + '35'; // 호버 대상 외의 선은 은은하게 딤 처리
         }
       }
 
@@ -415,11 +419,11 @@ export async function openRouteChartModal(route, allForwarders) {
         fid: f.id,
         rawColor: color,
         data: periods.map(p => getVal(p.rates[f.id], rateKey)),
-        borderColor: color,
+        borderColor: strokeColor,
         backgroundColor: color + '15',
         borderWidth: borderWidth,
-        pointRadius: isHovered ? 7.5 : pointRadius,
-        pointHoverRadius: 9,
+        pointRadius: pointRadius,
+        pointHoverRadius: 8.5,
         pointBackgroundColor: color,
         pointBorderColor: '#ffffff',
         pointBorderWidth: 2,
