@@ -131,7 +131,7 @@ export async function openRouteChartModal(route, allForwarders) {
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px;background:var(--bg-surface);border:1px solid var(--border-color);padding:10px 20px;border-radius:12px;font-size:13.5px;">
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:26px;height:0;border-top:4.5px dashed #10b981;display:inline-block;box-shadow:0 0 10px rgba(16,185,129,0.7);"></span>
-              <strong style="color:#10b981;font-size:14px;">★ 최저 제출가 (Bold Dashed)</strong>
+              <strong style="color:#10b981;font-size:14px;">최저 제출가 (Bold Dashed)</strong>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:20px;height:12px;background:rgba(148,163,184,0.3);border-radius:3px;display:inline-block;border:1px dashed rgba(100,116,139,0.6);"></span>
@@ -459,7 +459,7 @@ export async function openRouteChartModal(route, allForwarders) {
 
     // 최저 제출가 초대형 굵은 점선 라인 (포워더 선 가림 방지 및 기준선 역할)
     const minLine = {
-      label: '★ 최저 제출가',
+      label: '최저 제출가',
       data: minMaxArr.map(d => d.min),
       borderColor: '#10b981',
       backgroundColor: '#10b98125',
@@ -533,7 +533,7 @@ export async function openRouteChartModal(route, allForwarders) {
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: 15.5px; font-weight: 900; color: #10b981; background: rgba(16,185,129,0.12); padding: 5px 10px; border-radius: 8px;">
                       <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span>
-                        <span>★ 최저 제출가</span>
+                        <span>최저 제출가</span>
                       </div>
                       <span style="font-family: monospace; font-size: 16.5px; font-variant-numeric: tabular-nums;">$${mm.min.toLocaleString()}</span>
                     </div>
