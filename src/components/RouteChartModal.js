@@ -302,10 +302,10 @@ export async function openRouteChartModal(route, allForwarders) {
       const vals = finalForwarders
         .map(f => getVal(p.rates[f.id], rateKey))
         .filter(v => v !== null);
-      return {
-        min: vals.length ? Math.min(...vals) : null,
-        max: vals.length ? Math.max(...vals) : null
-      };
+      const min = vals.length ? Math.min(...vals) : null;
+      const max = vals.length ? Math.max(...vals) : null;
+      const avg = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+      return { min, max, avg };
     });
   }
 
@@ -506,17 +506,17 @@ export async function openRouteChartModal(route, allForwarders) {
 
                 innerHtml += `</div>`;
 
-                // 하단 견적 격차 (Spread)
-                if (mm && mm.min !== null && mm.max !== null && mm.min !== mm.max) {
-                  const spread = mm.max - mm.min;
+                // 하단 견적 격차 (Spread: 평균 - 최저)
+                if (mm && mm.min !== null && mm.avg !== null && mm.min !== mm.avg) {
+                  const spread = mm.avg - mm.min;
                   innerHtml += `
                     <div style="border-top: 1.5px dashed var(--border-color, #475569); padding-top: 10px; font-size: 13.5px; color: var(--text-secondary, #94a3b8); display: flex; flex-direction: column; gap: 3px;">
                       <div style="display: flex; justify-content: space-between; font-weight: 800; color: var(--warning, #f59e0b); font-size: 14.5px;">
-                        <span>📊 견적 격차 (Spread)</span>
+                        <span>📊 평균 대비 격차 (Spread)</span>
                         <span style="font-family: monospace; font-variant-numeric: tabular-nums;">$${spread.toLocaleString()}</span>
                       </div>
                       <div style="font-size: 12.5px; color: var(--text-secondary);">
-                        최저 $${mm.min.toLocaleString()} ~ 최고 $${mm.max.toLocaleString()}
+                        최저 $${mm.min.toLocaleString()} / 평균 $${mm.avg.toLocaleString()}
                       </div>
                     </div>
                   `;
@@ -610,8 +610,10 @@ export async function openRouteChartModal(route, allForwarders) {
     const topWinnerEntry = Object.entries(winCounts).sort((a, b) => b[1] - a[1])[0];
     const topWinnerObj = finalForwarders.find(f => f.id === topWinnerEntry?.[0]);
 
-    const validSpreads = minMaxArr.filter(m => m.min !== null && m.max !== null).map(m => m.max - m.min);
+    // 평균 - 최저 기준 Spread 계산
+    const validSpreads = minMaxArr.filter(m => m.min !== null && m.avg !== null).map(m => m.avg - m.min);
     const avgSpread = validSpreads.length ? Math.round(validSpreads.reduce((a, b) => a + b, 0) / validSpreads.length) : 0;
+    const currentSpread = (lastMM.avg !== null && lastMM.min !== null) ? lastMM.avg - lastMM.min : 0;
 
     statsEl.style.display = 'grid';
     statsEl.innerHTML = `
@@ -628,29 +630,29 @@ export async function openRouteChartModal(route, allForwarders) {
         </div>
       </div>
 
-      <!-- 카드 2: 최근 최고 제출가 (로즈 레드) -->
+      <!-- 카드 2: 최근 평균 제출가 (스마트 인디고) -->
       <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">
         <div style="font-size:13.5px;color:var(--text-secondary);margin-bottom:6px;font-weight:700;">
-          최근 최고 제출가 (${lastPeriod.label}월)
+          최근 평균 제출가 (${lastPeriod.label}월)
         </div>
-        <div style="font-size:2.1rem;font-weight:900;color:var(--danger);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
-          $${lastMM.max.toLocaleString()}
+        <div style="font-size:2.1rem;font-weight:900;color:#6366f1;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
+          $${(lastMM.avg || 0).toLocaleString()}
         </div>
         <div style="font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600;">
-          최저가 대비: <strong style="color:var(--danger);">+$${(lastMM.max - lastMM.min).toLocaleString()}</strong>
+          최저가 대비: <strong style="color:#6366f1;">+$${currentSpread.toLocaleString()}</strong>
         </div>
       </div>
 
-      <!-- 카드 3: 최근 견적 격차 (앰버 오렌지) -->
+      <!-- 카드 3: 최근 견적 격차 (평균 - 최저) (앰버 오렌지) -->
       <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">
         <div style="font-size:13.5px;color:var(--text-secondary);margin-bottom:6px;font-weight:700;">
-          최근 견적 격차 (Spread)
+          최근 견적 격차 (평균 - 최저)
         </div>
         <div style="font-size:2.1rem;font-weight:900;color:var(--warning);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
-          $${(lastMM.max - lastMM.min).toLocaleString()}
+          $${currentSpread.toLocaleString()}
         </div>
         <div style="font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600;">
-          전체 평균: <strong style="color:var(--text-primary);">$${avgSpread.toLocaleString()}</strong>
+          전체 평균 격차: <strong style="color:var(--text-primary);">$${avgSpread.toLocaleString()}</strong>
         </div>
       </div>
 
@@ -715,11 +717,11 @@ export async function openRouteChartModal(route, allForwarders) {
               <th style="width:120px;min-width:120px;color:#10b981;white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:center;background:rgba(16,185,129,0.06);">
                 최저 제출가
               </th>
-              <th style="width:120px;min-width:120px;color:var(--danger);white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:center;background:rgba(239,68,68,0.04);">
-                최고 제출가
+              <th style="width:120px;min-width:120px;color:#6366f1;white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:center;background:rgba(99,102,241,0.05);">
+                평균 제출가
               </th>
               <th style="width:125px;min-width:125px;color:var(--warning);white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:center;background:rgba(245,158,11,0.04);">
-                Spread (격차)
+                Spread (평균 - 최저)
               </th>
             </tr>
           </thead>
@@ -730,8 +732,8 @@ export async function openRouteChartModal(route, allForwarders) {
       const vals = vFws.map(f => getVal(p.rates[f.id], rateKey));
       const valid = vals.filter(v => v !== null);
       const minV = valid.length ? Math.min(...valid) : null;
-      const maxV = valid.length ? Math.max(...valid) : null;
-      const spread = (minV !== null && maxV !== null) ? maxV - minV : null;
+      const avgV = valid.length ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : null;
+      const spread = (minV !== null && avgV !== null) ? avgV - minV : null;
 
       h += `
         <tr style="border-bottom:1px solid var(--border-color);transition:background 0.1s ease;">
@@ -757,8 +759,8 @@ export async function openRouteChartModal(route, allForwarders) {
           <td style="color:#10b981;font-weight:900;padding:13px 16px;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.07);font-size:14.5px;text-align:center;">
             ${minV !== null ? '$' + minV.toLocaleString() : '-'}
           </td>
-          <td style="color:var(--danger);padding:13px 16px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:800;background:rgba(239,68,68,0.04);text-align:center;">
-            ${maxV !== null ? '$' + maxV.toLocaleString() : '-'}
+          <td style="color:#6366f1;padding:13px 16px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:800;background:rgba(99,102,241,0.05);text-align:center;">
+            ${avgV !== null ? '$' + avgV.toLocaleString() : '-'}
           </td>
           <td style="color:var(--warning);font-weight:800;padding:13px 16px;font-variant-numeric:tabular-nums;font-size:14px;background:rgba(245,158,11,0.04);text-align:center;">
             ${spread !== null ? '$' + spread.toLocaleString() : '-'}
