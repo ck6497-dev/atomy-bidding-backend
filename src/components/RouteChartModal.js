@@ -62,7 +62,7 @@ export async function openRouteChartModal(route, allForwarders) {
               </span>
             </div>
             <div style="font-size:13px;color:var(--text-secondary);margin-top:3px;font-weight:600;">
-              입찰 회차별 포워더 견적 스펙트럼 & 최저 입찰가 벤치마킹 대시보드
+              입찰 회차별 포워더 견적 스펙트럼 & 최저 제출가 벤치마킹 대시보드
             </div>
           </div>
         </div>
@@ -131,7 +131,7 @@ export async function openRouteChartModal(route, allForwarders) {
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px;background:var(--bg-surface);border:1px solid var(--border-color);padding:10px 20px;border-radius:12px;font-size:13px;">
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:20px;height:5px;background:#10b981;border-radius:3px;display:inline-block;box-shadow:0 0 10px rgba(16,185,129,0.7);"></span>
-              <strong style="color:#10b981;font-size:14px;">★ 최저 입찰가 (Bold Emerald)</strong>
+              <strong style="color:#10b981;font-size:14px;">★ 최저 제출가 (Bold Emerald)</strong>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:20px;height:12px;background:rgba(148,163,184,0.3);border-radius:3px;display:inline-block;border:1px dashed rgba(100,116,139,0.6);"></span>
@@ -404,9 +404,9 @@ export async function openRouteChartModal(route, allForwarders) {
       tension: 0.3,
     };
 
-    // 최저 입찰가 초록 라인
+    // 최저 제출가 초록 라인
     const minLine = {
-      label: '★ 최저 입찰가',
+      label: '★ 최저 제출가',
       data: minMaxArr.map(d => d.min),
       borderColor: '#10b981',
       backgroundColor: '#10b98125',
@@ -473,13 +473,13 @@ export async function openRouteChartModal(route, allForwarders) {
                   <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
                 `;
 
-                // 최저 입찰가 행
+                // 최저 제출가 행
                 if (mm && mm.min !== null) {
                   innerHtml += `
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: 15.5px; font-weight: 900; color: #10b981; background: rgba(16,185,129,0.12); padding: 5px 10px; border-radius: 8px;">
                       <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span>
-                        <span>★ 최저 입찰가</span>
+                        <span>★ 최저 제출가</span>
                       </div>
                       <span style="font-family: monospace; font-size: 16.5px; font-variant-numeric: tabular-nums;">$${mm.min.toLocaleString()}</span>
                     </div>
@@ -613,10 +613,10 @@ export async function openRouteChartModal(route, allForwarders) {
 
     statsEl.style.display = 'grid';
     statsEl.innerHTML = `
-      <!-- 카드 1: 최근 최저 입찰가 (에메랄드) -->
+      <!-- 카드 1: 최근 최저 제출가 (에메랄드) -->
       <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">
         <div style="font-size:13.5px;color:var(--text-secondary);margin-bottom:6px;font-weight:700;">
-          최근 최저 입찰가 (${lastPeriod.label}월)
+          최근 최저 제출가 (${lastPeriod.label}월)
         </div>
         <div style="font-size:2.1rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
           $${lastMM.min.toLocaleString()}
