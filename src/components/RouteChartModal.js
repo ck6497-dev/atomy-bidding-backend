@@ -545,14 +545,18 @@ export async function openRouteChartModal(route, allForwarders) {
           scales: {
             x: {
               grid: { color: gridC },
-              ticks: { color: lblC, font: { size: 14, weight: '800', family: "inherit" }, padding: 8 }
+              ticks: { 
+                color: lblC, 
+                font: { size: 16.5, weight: '800', family: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }, 
+                padding: 10 
+              }
             },
             y: {
               grid: { color: gridC },
               ticks: {
                 color: lblC,
-                font: { size: 14, weight: '800', family: "inherit" },
-                padding: 8,
+                font: { size: 16.5, weight: '800', family: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+                padding: 12,
                 callback: v => '$' + Number(v).toLocaleString()
               }
             }
