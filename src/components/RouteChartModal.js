@@ -160,8 +160,8 @@ export async function openRouteChartModal(route, allForwarders) {
             "></div>
           </div>
 
-          <!-- 4-1. 물류 물량 시뮬레이터 (Volume Buying Power Simulator) -->
-          <div id="rc-simulator" style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:18px;padding:20px 24px;box-shadow:0 6px 24px rgba(0,0,0,0.06);display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:stretch;">
+          <!-- 4-1. 해상운임 절감 시뮬레이터 -->
+          <div id="rc-simulator" style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:18px;padding:20px 24px;box-shadow:0 6px 24px rgba(0,0,0,0.06);display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:center;">
             
             <!-- 좌측: 슬라이더 컨트롤 -->
             <div style="display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
@@ -171,7 +171,7 @@ export async function openRouteChartModal(route, allForwarders) {
                 </div>
                 <div>
                   <div style="font-size:15px;font-weight:900;color:var(--text-primary);">
-                    물류 물량 시뮬레이터 (Volume Buying Power Simulator)
+                    해상운임 절감 시뮬레이터
                   </div>
                   <div style="font-size:12.5px;color:var(--text-secondary);margin-top:2px;font-weight:500;">
                     연간 선적 컨테이너 물량을 조절하여 시장 평균가 대비 예상 비용 절감액 산출
@@ -194,22 +194,17 @@ export async function openRouteChartModal(route, allForwarders) {
             </div>
 
             <!-- 우측: 실시간 예상 절감액 카드 -->
-            <div style="background:var(--bg-secondary);border:1.5px solid var(--border-color);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between;">
+            <div style="background:var(--bg-secondary);border:1.5px solid var(--border-color);border-radius:16px;padding:22px 24px;display:flex;flex-direction:column;justify-content:center;height:100%;">
               <div>
-                <span style="font-size:12.5px;color:var(--text-secondary);font-weight:800;letter-spacing:0.02em;">
-                  시뮬레이션 예상 수주 성과
+                <span style="font-size:13px;color:var(--text-secondary);font-weight:800;letter-spacing:0.02em;">
+                  시뮬레이션 예상 성과
                 </span>
-                <div id="rc-sim-saving-display" style="font-size:2.2rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:6px;">
+                <div id="rc-sim-saving-display" style="font-size:2.3rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:6px;">
                   $1,018,000
                 </div>
-                <div id="rc-sim-sub-desc" style="font-size:12.5px;color:var(--text-secondary);margin-top:4px;font-weight:600;">
-                  시장 평균 대비 연간 절감 기대치
+                <div id="rc-sim-sub-desc" style="font-size:13px;color:var(--text-secondary);margin-top:6px;font-weight:600;">
+                  연간 절감 기대치 (FEU당 $509 절감)
                 </div>
-              </div>
-
-              <div style="margin-top:12px;font-size:12px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);color:#10b981;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:6px;font-weight:800;">
-                <span>✔</span>
-                <span>임원보고용 바잉파워 입증 자료 자동 생성</span>
               </div>
             </div>
 
@@ -756,7 +751,7 @@ export async function openRouteChartModal(route, allForwarders) {
     const totalSavings = Math.round(currentSimSpread * simVolume);
     savingDisplay.textContent = '$' + totalSavings.toLocaleString();
     if (subDesc) {
-      subDesc.textContent = `시장 평균 대비 연간 절감 기대치 (${unit}당 $${currentSimSpread.toLocaleString()} 절감)`;
+      subDesc.textContent = `연간 절감 기대치 (${unit}당 $${currentSimSpread.toLocaleString()} 절감)`;
     }
   }
 
