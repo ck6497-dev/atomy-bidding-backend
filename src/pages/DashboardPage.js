@@ -68,7 +68,11 @@ export async function renderDashboardPage(container) {
       totalRoutes: allRoutes.length,
       participatingForwarders: 0,
       completionRate: 0,
-      avgLowest20ft: 0
+      avgLowest20ft: 0,
+      momRate: null,
+      momText: '-',
+      momColor: 'var(--text-primary)',
+      momSub: '직전 회차 없음'
     };
 
     let tableContent = '';
@@ -87,6 +91,68 @@ export async function renderDashboardPage(container) {
         expectedRates += allForwarders.filter(f => f.assigned_routes && f.assigned_routes.includes(route.id)).length;
       });
       stats.completionRate = expectedRates ? Math.round((ratesByBidding.length / expectedRates) * 100) : 0;
+
+      // ── [전월 대비 운임 변동률 계산] ──
+      // 1단계: 직전 회차 찾기
+      const currentIdx = sortedBiddings.findIndex(b => b.id === currentBidding.id);
+      const prevBidding = (currentIdx !== -1 && currentIdx + 1 < sortedBiddings.length) ? sortedBiddings[currentIdx + 1] : null;
+
+      if (prevBidding) {
+        try {
+          const prevRatesData = await getAllRates(prevBidding.id);
+
+          // 1차: 노선별 평균 운임 계산 (40FT 기준)
+          const currentRouteAvgs = [];
+          const prevRouteAvgs = [];
+
+          allRoutes.forEach(route => {
+            // 이번 달 해당 노선의 제출 운임들
+            const curRates = ratesByBidding
+              .filter(r => r.route_id === route.id && r.rate_40ft !== null && r.rate_40ft !== undefined && r.rate_40ft !== '')
+              .map(r => Number(r.rate_40ft));
+            
+            // 지난 달 해당 노선의 제출 운임들
+            const prevRates = prevRatesData
+              .filter(r => r.route_id === route.id && r.rate_40ft !== null && r.rate_40ft !== undefined && r.rate_40ft !== '')
+              .map(r => Number(r.rate_40ft));
+
+            if (curRates.length > 0) {
+              const curAvg = curRates.reduce((a, b) => a + b, 0) / curRates.length;
+              currentRouteAvgs.push(curAvg);
+            }
+
+            if (prevRates.length > 0) {
+              const prevAvg = prevRates.reduce((a, b) => a + b, 0) / prevRates.length;
+              prevRouteAvgs.push(prevAvg);
+            }
+          });
+
+          // 2차: 전체 노선의 평균 종합
+          if (currentRouteAvgs.length > 0 && prevRouteAvgs.length > 0) {
+            const currentTotalAvg = currentRouteAvgs.reduce((a, b) => a + b, 0) / currentRouteAvgs.length;
+            const prevTotalAvg = prevRouteAvgs.reduce((a, b) => a + b, 0) / prevRouteAvgs.length;
+
+            if (prevTotalAvg > 0) {
+              const diffPct = ((currentTotalAvg - prevTotalAvg) / prevTotalAvg) * 100;
+              stats.momRate = diffPct;
+              const absVal = Math.abs(diffPct).toFixed(1);
+              if (diffPct < 0) {
+                stats.momText = `-${absVal}% 하락 🟢`;
+                stats.momColor = '#10b981';
+              } else if (diffPct > 0) {
+                stats.momText = `+${absVal}% 상승 🔴`;
+                stats.momColor = 'var(--danger, #ef4444)';
+              } else {
+                stats.momText = `0.0% 보합`;
+                stats.momColor = 'var(--text-secondary)';
+              }
+              stats.momSub = `직전 회차(${prevBidding.title}) 대비`;
+            }
+          }
+        } catch (e) {
+          console.error('[Dashboard] MoM calc error:', e);
+        }
+      }
       
       let lowest20ftSum = 0;
       let routesWithLowest = 0;
@@ -218,8 +284,9 @@ export async function renderDashboardPage(container) {
           <div class="value">${stats.participatingForwarders}</div>
         </div>
         <div class="stat-card">
-          <div class="label">입력 완료율</div>
-          <div class="value">${stats.completionRate}%</div>
+          <div class="label">운임 변동률 (전월대비)</div>
+          <div class="value" style="color: ${stats.momColor}; font-size: 1.65rem; font-weight: 900; letter-spacing: -0.02em;">${stats.momText}</div>
+          <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px; font-weight: 500;">${stats.momSub}</div>
         </div>
         <div class="stat-card">
           <div class="label">최저가 평균 (20FT)</div>
