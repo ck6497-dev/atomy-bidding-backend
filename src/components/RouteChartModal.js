@@ -685,7 +685,7 @@ export async function openRouteChartModal(route, allForwarders) {
 
     let h = `
       <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.06);">
-        <table class="data-table" style="width:100%;border-collapse:collapse;font-size:14px;text-align:right;">
+        <table class="data-table" style="width:100%;border-collapse:collapse;font-size:14px;text-align:center;">
           <thead>
             <!-- 1단 그룹 헤더 -->
             <tr style="background:var(--bg-surface);border-bottom:1px solid var(--border-color);">
@@ -702,17 +702,17 @@ export async function openRouteChartModal(route, allForwarders) {
             <!-- 2단 개별 컬럼 헤더 -->
             <tr style="background:var(--bg-surface);border-bottom:2px solid var(--border-color);">
               ${vFws.map((f, i) => `
-                <th style="width:130px;min-width:130px;color:${COLORS[i % COLORS.length]};white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:right;${i === vFws.length - 1 ? 'border-right:3px solid var(--border-color);' : ''}">
+                <th style="width:130px;min-width:130px;color:${COLORS[i % COLORS.length]};white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:center;${i === vFws.length - 1 ? 'border-right:3px solid var(--border-color);' : ''}">
                   ${f.name}
                 </th>
               `).join('')}
-              <th style="width:120px;min-width:120px;color:#10b981;white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:right;background:rgba(16,185,129,0.06);">
+              <th style="width:120px;min-width:120px;color:#10b981;white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:center;background:rgba(16,185,129,0.06);">
                 최저 제출가
               </th>
-              <th style="width:120px;min-width:120px;color:var(--danger);white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:right;background:rgba(239,68,68,0.04);">
+              <th style="width:120px;min-width:120px;color:var(--danger);white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:center;background:rgba(239,68,68,0.04);">
                 최고 제출가
               </th>
-              <th style="width:125px;min-width:125px;color:var(--warning);white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:right;background:rgba(245,158,11,0.04);">
+              <th style="width:125px;min-width:125px;color:var(--warning);white-space:nowrap;padding:12px 16px;font-size:13.5px;font-weight:800;text-align:center;background:rgba(245,158,11,0.04);">
                 Spread (격차)
               </th>
             </tr>
@@ -734,7 +734,7 @@ export async function openRouteChartModal(route, allForwarders) {
             ${p.label}
           </td>
 
-          <!-- 포워더별 제출가 열 (균등 너비 130px) -->
+          <!-- 포워더별 제출가 열 (균등 너비 130px, 가운데 정렬) -->
           ${vals.map((v, i) => {
             const isMin = v !== null && v === minV && valid.length > 1;
             const isMax = v !== null && v === maxV && valid.length > 1;
@@ -743,19 +743,19 @@ export async function openRouteChartModal(route, allForwarders) {
             const style = isMin
               ? 'color:#10b981;font-weight:900;background:rgba(16,185,129,0.14);font-size:14.5px;'
               : (isMax ? 'color:var(--danger);font-size:14px;font-weight:700;' : 'font-size:14px;color:var(--text-primary);');
-            return `<td style="padding:13px 16px;font-variant-numeric:tabular-nums;text-align:right;${borderRight}${style}">
+            return `<td style="padding:13px 16px;font-variant-numeric:tabular-nums;text-align:center;${borderRight}${style}">
               ${v !== null ? '$' + v.toLocaleString() : '<span style="color:var(--text-secondary);opacity:0.4;">-</span>'}
             </td>`;
           }).join('')}
 
-          <!-- 요약 통계 영역 (독립된 배경 및 3px 분리선) -->
-          <td style="color:#10b981;font-weight:900;padding:13px 16px;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.07);font-size:14.5px;text-align:right;">
+          <!-- 요약 통계 영역 (독립된 배경, 가운데 정렬) -->
+          <td style="color:#10b981;font-weight:900;padding:13px 16px;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.07);font-size:14.5px;text-align:center;">
             ${minV !== null ? '$' + minV.toLocaleString() : '-'}
           </td>
-          <td style="color:var(--danger);padding:13px 16px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:800;background:rgba(239,68,68,0.04);text-align:right;">
+          <td style="color:var(--danger);padding:13px 16px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:800;background:rgba(239,68,68,0.04);text-align:center;">
             ${maxV !== null ? '$' + maxV.toLocaleString() : '-'}
           </td>
-          <td style="color:var(--warning);font-weight:800;padding:13px 16px;font-variant-numeric:tabular-nums;font-size:14px;background:rgba(245,158,11,0.04);text-align:right;">
+          <td style="color:var(--warning);font-weight:800;padding:13px 16px;font-variant-numeric:tabular-nums;font-size:14px;background:rgba(245,158,11,0.04);text-align:center;">
             ${spread !== null ? '$' + spread.toLocaleString() : '-'}
           </td>
         </tr>
