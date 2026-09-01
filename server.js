@@ -697,7 +697,7 @@ app.get('/api/biddings', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/biddings', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/biddings', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { title, year, month, deadline } = req.body;
   if (!title || !year || !month) return res.status(400).json({ error: '필수 값이 누락되었습니다.' });
   
@@ -718,7 +718,7 @@ app.post('/api/biddings', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-app.put('/api/biddings/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/biddings/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
   const { title, deadline, status, closedAt, closed_at } = req.body;
   try {
@@ -882,7 +882,7 @@ app.post('/api/rates/submit', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/rates/revoke', authenticateToken, async (req, res) => {
+app.post('/api/rates/revoke', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { biddingId, forwarderId } = req.body;
   if (!biddingId || !forwarderId) return res.status(400).json({ error: '필수 값이 누락되었습니다.' });
   
