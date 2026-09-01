@@ -32,6 +32,10 @@ export async function renderDashboardPage(container) {
     const allRoutes = await getRoutes();
     const allForwarders = await getForwarders();
     
+    let ratesByBidding = [];
+    let prevRatesData = [];
+    let prevBidding = null;
+
     const sortedBiddings = [...allBiddings].sort((a, b) => {
       if (a.status === 'active' && b.status !== 'active') return -1;
       if (b.status === 'active' && a.status !== 'active') return 1;
@@ -82,7 +86,7 @@ export async function renderDashboardPage(container) {
       tableContent = `<div class="empty-state">등록된 입찰이 없습니다. 입찰 관리에서 새 입찰을 생성해주세요.</div>`;
     } else {
       const allRatesData = await getAllRates(currentBidding.id);
-      const ratesByBidding = allRatesData;
+      ratesByBidding = allRatesData;
       
       const participatingIds = new Set(ratesByBidding.map(r => r.forwarder_id));
       stats.participatingForwarders = participatingIds.size;
@@ -94,9 +98,8 @@ export async function renderDashboardPage(container) {
       stats.completionRate = expectedRates ? Math.round((ratesByBidding.length / expectedRates) * 100) : 0;
 
       // ── [전월 대비 운임 변동률 계산] ──
-      let prevRatesData = [];
       const currentIdx = sortedBiddings.findIndex(b => b.id === currentBidding.id);
-      const prevBidding = (currentIdx !== -1 && currentIdx + 1 < sortedBiddings.length) ? sortedBiddings[currentIdx + 1] : null;
+      prevBidding = (currentIdx !== -1 && currentIdx + 1 < sortedBiddings.length) ? sortedBiddings[currentIdx + 1] : null;
 
       if (prevBidding) {
         try {
