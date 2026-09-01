@@ -137,10 +137,10 @@ export async function renderDashboardPage(container) {
               stats.momRate = diffPct;
               const absVal = Math.abs(diffPct).toFixed(1);
               if (diffPct < 0) {
-                stats.momText = `-${absVal}% 하락 🟢`;
+                stats.momText = `-${absVal}% 하락`;
                 stats.momColor = '#10b981';
               } else if (diffPct > 0) {
-                stats.momText = `+${absVal}% 상승 🔴`;
+                stats.momText = `+${absVal}% 상승`;
                 stats.momColor = 'var(--danger, #ef4444)';
               } else {
                 stats.momText = `0.0% 보합`;
