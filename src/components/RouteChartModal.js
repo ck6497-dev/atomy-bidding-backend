@@ -525,51 +525,55 @@ export async function openRouteChartModal(route, allForwarders) {
 
     statsEl.style.display = 'grid';
     statsEl.innerHTML = `
-      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:4px solid #10b981;border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
-        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;font-weight:800;">
+      <!-- 카드 1: 최근 최저 입찰가 (핵심 지표 - 에메랄드 강조) -->
+      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:3.5px solid #10b981;border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">
+        <div style="font-size:13.5px;color:var(--text-secondary);margin-bottom:6px;font-weight:700;">
           최근 최저 입찰가 (${lastPeriod.label}월)
         </div>
         <div style="font-size:2.1rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
           $${lastMM.min.toLocaleString()}
         </div>
-        <div style="font-size:13.5px;color:var(--text-primary);margin-top:5px;font-weight:700;">
-          최저가 제출: <strong style="color:var(--text-primary);font-size:14.5px;">${minFw ? minFw.name : '-'}</strong>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600;">
+          최저가 제출: <strong style="color:var(--text-primary);font-size:14px;">${minFw ? minFw.name : '-'}</strong>
         </div>
       </div>
 
-      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:4px solid var(--danger);border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
-        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;font-weight:800;">
+      <!-- 카드 2: 최근 최고 제출가 (차분한 모노톤) -->
+      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">
+        <div style="font-size:13.5px;color:var(--text-secondary);margin-bottom:6px;font-weight:700;">
           최근 최고 제출가 (${lastPeriod.label}월)
         </div>
-        <div style="font-size:2.1rem;font-weight:900;color:var(--danger);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
+        <div style="font-size:2.1rem;font-weight:900;color:var(--text-primary);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
           $${lastMM.max.toLocaleString()}
         </div>
-        <div style="font-size:13.5px;color:var(--text-secondary);margin-top:5px;font-weight:700;">
-          최저가 대비: <strong style="color:var(--danger);">+$${(lastMM.max - lastMM.min).toLocaleString()}</strong>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600;">
+          최저가 대비: +$${(lastMM.max - lastMM.min).toLocaleString()}
         </div>
       </div>
 
-      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:4px solid var(--warning);border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
-        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;font-weight:800;">
+      <!-- 카드 3: 최근 견적 격차 (차분한 모노톤) -->
+      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">
+        <div style="font-size:13.5px;color:var(--text-secondary);margin-bottom:6px;font-weight:700;">
           최근 견적 격차 (Spread)
         </div>
-        <div style="font-size:2.1rem;font-weight:900;color:var(--warning);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
+        <div style="font-size:2.1rem;font-weight:900;color:var(--text-primary);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
           $${(lastMM.max - lastMM.min).toLocaleString()}
         </div>
-        <div style="font-size:13.5px;color:var(--text-secondary);margin-top:5px;font-weight:700;">
-          전체 평균 스프레드: <strong style="color:var(--text-primary);">$${avgSpread.toLocaleString()}</strong>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600;">
+          전체 평균: $${avgSpread.toLocaleString()}
         </div>
       </div>
 
-      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:4px solid var(--accent);border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
-        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;font-weight:800;">
+      <!-- 카드 4: 최다 최저가 제시 포워더 (차분한 모노톤) -->
+      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-radius:16px;padding:18px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">
+        <div style="font-size:13.5px;color:var(--text-secondary);margin-bottom:6px;font-weight:700;">
           최다 최저가 제시 포워더
         </div>
-        <div style="font-size:1.75rem;font-weight:900;color:var(--accent);letter-spacing:-0.02em;margin-top:2px;line-height:1.2;">
+        <div style="font-size:1.75rem;font-weight:900;color:var(--text-primary);letter-spacing:-0.02em;margin-top:2px;line-height:1.2;">
           ${topWinnerObj ? topWinnerObj.name : '-'}
         </div>
-        <div style="font-size:13.5px;color:var(--text-primary);margin-top:5px;font-weight:700;">
-          총 ${periods.length}회차 중 <strong style="color:var(--accent);font-size:14.5px;">${topWinnerEntry ? topWinnerEntry[1] : 0}회</strong> 최저 견적 제출
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600;">
+          총 ${periods.length}회차 중 <strong style="color:var(--text-primary);font-size:14px;">${topWinnerEntry ? topWinnerEntry[1] : 0}회</strong> 최저가 제출
         </div>
       </div>
     `;
