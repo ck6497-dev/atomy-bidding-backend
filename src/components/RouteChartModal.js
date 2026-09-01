@@ -314,7 +314,9 @@ export async function openRouteChartModal(route, allForwarders) {
     const chartView = document.getElementById('rc-chart-view');
     const controlsEl = document.getElementById('rc-controls');
     const statsEl = document.getElementById('rc-stats');
-    const periods = buildPeriods();
+    const allPeriods = buildPeriods();
+    // 최근 1년(최대 12개 회차) 데이터만 추출
+    const periods = allPeriods.slice(-12);
 
     if (periods.length === 0) {
       if (loadEl) {
