@@ -743,12 +743,11 @@ export async function openRouteChartModal(route, allForwarders) {
           <!-- 포워더별 제출가 열 (균등 너비 130px, 가운데 정렬) -->
           ${vals.map((v, i) => {
             const isMin = v !== null && v === minV && valid.length > 1;
-            const isMax = v !== null && v === maxV && valid.length > 1;
             const isLast = i === vals.length - 1;
             const borderRight = isLast ? 'border-right:3px solid var(--border-color);' : '';
             const style = isMin
               ? 'color:#10b981;font-weight:900;background:rgba(16,185,129,0.14);font-size:14.5px;'
-              : (isMax ? 'color:var(--danger);font-size:14px;font-weight:700;' : 'font-size:14px;color:var(--text-primary);');
+              : 'font-size:14px;color:var(--text-primary);';
             return `<td style="padding:13px 16px;font-variant-numeric:tabular-nums;text-align:center;${borderRight}${style}">
               ${v !== null ? '$' + v.toLocaleString() : '<span style="color:var(--text-secondary);opacity:0.4;">-</span>'}
             </td>`;
