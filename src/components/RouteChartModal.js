@@ -667,6 +667,8 @@ export async function openRouteChartModal(route, allForwarders) {
 
   function renderTable() {
     const periods = buildPeriods();
+    // 원장 데이터는 최신 회차가 맨 위에 오도록 내림차순(최신순) 정렬
+    const tablePeriods = [...periods].reverse();
     const rateKey = currentFt === '20ft' ? 'rate_20ft' : 'rate_40ft';
     const vFws = finalForwarders.filter(f => activeFids.has(f.id));
 
@@ -678,7 +680,7 @@ export async function openRouteChartModal(route, allForwarders) {
     const tv = document.getElementById('rc-table-view');
     tv.style.display = 'block';
 
-    if (periods.length === 0) {
+    if (tablePeriods.length === 0) {
       document.getElementById('rc-table-content').innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:48px;font-size:16px;font-weight:700;">입찰 운임 데이터가 없습니다.</p>';
       return;
     }
@@ -720,7 +722,7 @@ export async function openRouteChartModal(route, allForwarders) {
           <tbody>
     `;
 
-    periods.forEach(p => {
+    tablePeriods.forEach(p => {
       const vals = vFws.map(f => getVal(p.rates[f.id], rateKey));
       const valid = vals.filter(v => v !== null);
       const minV = valid.length ? Math.min(...valid) : null;
