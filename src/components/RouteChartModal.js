@@ -179,16 +179,16 @@ export async function openRouteChartModal(route, allForwarders) {
                 </div>
               </div>
 
-              <div style="background:var(--bg-secondary);border:1px solid var(--border-color);padding:14px 18px;border-radius:14px;display:flex;flex-direction:column;gap:10px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;font-weight:800;">
+              <div style="background:var(--bg-secondary);border:1px solid var(--border-color);padding:16px 20px;border-radius:14px;display:flex;flex-direction:column;gap:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:800;">
                   <span style="color:var(--text-primary);">연간 물동량 설정:</span>
-                  <span id="rc-sim-vol-display" style="color:#10b981;font-size:16.5px;font-weight:900;font-variant-numeric:tabular-nums;">2,000 FEU</span>
+                  <span id="rc-sim-vol-display" style="color:#10b981;font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;">500 FEU</span>
                 </div>
-                <input id="rc-sim-slider" type="range" min="100" max="10000" step="100" value="2000" style="width:100%;accent-color:#10b981;cursor:pointer;height:6px;border-radius:3px;" />
-                <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-secondary);font-weight:700;">
-                  <span id="rc-sim-min-tick">100 FEU</span>
-                  <span id="rc-sim-mid-tick">5,000 FEU</span>
-                  <span id="rc-sim-max-tick">10,000 FEU</span>
+                <input id="rc-sim-slider" type="range" min="10" max="1000" step="10" value="500" style="width:100%;accent-color:#10b981;cursor:pointer;height:12px;border-radius:6px;background:var(--bg-hover);" />
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);font-weight:700;">
+                  <span id="rc-sim-min-tick">10 FEU</span>
+                  <span id="rc-sim-mid-tick">500 FEU</span>
+                  <span id="rc-sim-max-tick">1,000 FEU</span>
                 </div>
               </div>
             </div>
@@ -724,7 +724,7 @@ export async function openRouteChartModal(route, allForwarders) {
     updateSimulator(avgSpread);
   }
 
-  let simVolume = 2000;
+  let simVolume = 500;
   let currentSimSpread = 0;
 
   function updateSimulator(avgSpread) {
@@ -743,9 +743,9 @@ export async function openRouteChartModal(route, allForwarders) {
 
     const unit = currentFt === '20ft' ? 'TEU' : 'FEU';
     volDisplay.textContent = Number(simVolume).toLocaleString() + ' ' + unit;
-    if (minTick) minTick.textContent = '100 ' + unit;
-    if (midTick) midTick.textContent = '5,000 ' + unit;
-    if (maxTick) maxTick.textContent = '10,000 ' + unit;
+    if (minTick) minTick.textContent = '10 ' + unit;
+    if (midTick) midTick.textContent = '500 ' + unit;
+    if (maxTick) maxTick.textContent = '1,000 ' + unit;
     if (slider) slider.value = simVolume;
 
     const totalSavings = Math.round(currentSimSpread * simVolume);
