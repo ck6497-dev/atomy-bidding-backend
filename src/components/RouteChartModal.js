@@ -426,24 +426,32 @@ export async function openRouteChartModal(route, allForwarders) {
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: isDark ? '#0f172a' : '#ffffff',
-              borderColor: isDark ? '#334155' : '#cbd5e1',
-              borderWidth: 1.5,
+              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.98)',
+              borderColor: isDark ? '#475569' : '#cbd5e1',
+              borderWidth: 2,
               titleColor: isDark ? '#f8fafc' : '#0f172a',
-              titleFont: { size: 14.5, weight: '800', family: "inherit" },
+              titleFont: { size: 16, weight: '900', family: "inherit" },
+              titleSpacing: 10,
               bodyColor: isDark ? '#e2e8f0' : '#1e293b',
-              bodyFont: { size: 13.5, weight: '700', family: "inherit" },
-              padding: 16,
-              cornerRadius: 12,
+              bodyFont: { size: 14.5, weight: '700', family: "inherit" },
+              bodySpacing: 8,
+              footerColor: isDark ? '#94a3b8' : '#64748b',
+              footerFont: { size: 14, weight: '700', family: "inherit" },
+              footerSpacing: 8,
+              padding: 20,
+              boxPadding: 8,
+              caretSize: 8,
+              cornerRadius: 14,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.35)',
               callbacks: {
                 title: items => `📅 ${items[0].label}월 운임 동향 (${currentFt.toUpperCase()} 기준)`,
                 label: item => {
                   if (item.dataset.label && item.dataset.label.startsWith('_')) return null;
                   const v = item.raw;
-                  if (v == null) return `   ${item.dataset.label}: 미제출`;
+                  if (v == null) return `  ${item.dataset.label}: 미제출`;
                   const isMin = item.dataset.label === '★ 최저 입찰가';
-                  const icon = isMin ? '🟢' : '  ';
-                  return `${icon} ${item.dataset.label}: $${Number(v).toLocaleString()}`;
+                  const icon = isMin ? '🟢' : '▪';
+                  return ` ${icon} ${item.dataset.label} : $${Number(v).toLocaleString()}`;
                 },
                 afterBody: items => {
                   const idx = items[0].dataIndex;
@@ -451,7 +459,7 @@ export async function openRouteChartModal(route, allForwarders) {
                   if (!mm || mm.min == null || mm.max == null || mm.min === mm.max) return [];
                   const spread = mm.max - mm.min;
                   return [
-                    '',
+                    '─────────────────────────',
                     `📊 포워더 견적 격차 (Spread): $${spread.toLocaleString()}`,
                     `   (최저 $${mm.min.toLocaleString()} ~ 최고 $${mm.max.toLocaleString()})`
                   ];
