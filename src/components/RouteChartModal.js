@@ -474,9 +474,13 @@ export async function openRouteChartModal(route, allForwarders) {
       fill: false,
     };
 
+    // 기존 차트가 있으면 데이터셋 스타일/가시성만 즉시 업데이트 (깜빡임 0)
     if (chartInstance) {
-      try { chartInstance.destroy(); } catch (e) {}
-      chartInstance = null;
+      chartInstance.data.labels = labels;
+      chartInstance.data.datasets = [bandTop, bandBot, minLine, ...fwDatasets];
+      chartInstance.update('none');
+      renderKpiStats(periods, minMaxArr, rateKey);
+      return;
     }
 
     try {
@@ -497,6 +501,12 @@ export async function openRouteChartModal(route, allForwarders) {
           responsive: true,
           maintainAspectRatio: false,
           devicePixelRatio: dpr,
+          animation: false,
+          transitions: {
+            active: {
+              animation: { duration: 0 }
+            }
+          },
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: false },
