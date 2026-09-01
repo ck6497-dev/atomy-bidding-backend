@@ -128,17 +128,14 @@ export async function openRouteChartModal(route, allForwarders) {
         <div id="rc-chart-view" style="display:none;position:relative;flex-direction:column;gap:12px;">
           
           <!-- 차트 상단 레이어 안내 배너 -->
-          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px;background:var(--bg-surface);border:1px solid var(--border-color);padding:10px 20px;border-radius:12px;font-size:13px;">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px;background:var(--bg-surface);border:1px solid var(--border-color);padding:10px 20px;border-radius:12px;font-size:13.5px;">
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:20px;height:5px;background:#10b981;border-radius:3px;display:inline-block;box-shadow:0 0 10px rgba(16,185,129,0.7);"></span>
               <strong style="color:#10b981;font-size:14px;">★ 최저 제출가 (Bold Emerald)</strong>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:20px;height:12px;background:rgba(148,163,184,0.3);border-radius:3px;display:inline-block;border:1px dashed rgba(100,116,139,0.6);"></span>
-              <span style="color:var(--text-primary);font-weight:700;font-size:13px;">포워더 견적 스펙트럼 (Min-Max 밴드)</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;color:var(--text-secondary);margin-left:auto;font-size:12.5px;font-weight:500;">
-              <span>💡 포워더 이름에 마우스를 올리면 해당 선만 강조되며, 선에 마우스를 올리면 상세 견적 격차(Spread)가 표시됩니다.</span>
+              <span style="color:var(--text-primary);font-weight:700;font-size:13.5px;">포워더 견적 스펙트럼 (Min-Max 밴드)</span>
             </div>
           </div>
 
