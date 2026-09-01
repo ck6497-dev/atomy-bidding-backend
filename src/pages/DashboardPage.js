@@ -146,7 +146,17 @@ export async function renderDashboardPage(container) {
                 stats.momText = `0.0% 보합`;
                 stats.momColor = 'var(--text-secondary)';
               }
-              stats.momSub = `직전 회차(${prevBidding.title}) 대비`;
+
+              const getMonthLabel = (title) => {
+                const m = title.match(/(\d+월)/);
+                return m ? m[1] : title;
+              };
+              const curLabel = getMonthLabel(currentBidding.title);
+              const prevLabel = getMonthLabel(prevBidding.title);
+              const curAvgFmt = '$' + Math.round(currentTotalAvg).toLocaleString();
+              const prevAvgFmt = '$' + Math.round(prevTotalAvg).toLocaleString();
+
+              stats.momSub = `${prevLabel} ${prevAvgFmt} → ${curLabel} ${curAvgFmt}`;
             }
           }
         } catch (e) {
