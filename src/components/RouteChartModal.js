@@ -529,7 +529,7 @@ export async function openRouteChartModal(route, allForwarders) {
         <div style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;font-weight:800;">
           최근 최저 낙찰가 (${lastPeriod.label}월)
         </div>
-        <div style="font-size:2.1rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-family:monospace;">
+        <div style="font-size:2.1rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
           $${lastMM.min.toLocaleString()}
         </div>
         <div style="font-size:13.5px;color:var(--text-primary);margin-top:5px;font-weight:700;">
@@ -541,7 +541,7 @@ export async function openRouteChartModal(route, allForwarders) {
         <div style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;font-weight:800;">
           최근 최고 제출가 (${lastPeriod.label}월)
         </div>
-        <div style="font-size:2.1rem;font-weight:900;color:var(--danger);letter-spacing:-0.03em;font-family:monospace;">
+        <div style="font-size:2.1rem;font-weight:900;color:var(--danger);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
           $${lastMM.max.toLocaleString()}
         </div>
         <div style="font-size:13.5px;color:var(--text-secondary);margin-top:5px;font-weight:700;">
@@ -553,7 +553,7 @@ export async function openRouteChartModal(route, allForwarders) {
         <div style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;font-weight:800;">
           최근 견적 격차 (Spread)
         </div>
-        <div style="font-size:2.1rem;font-weight:900;color:var(--warning);letter-spacing:-0.03em;font-family:monospace;">
+        <div style="font-size:2.1rem;font-weight:900;color:var(--warning);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1.2;">
           $${(lastMM.max - lastMM.min).toLocaleString()}
         </div>
         <div style="font-size:13.5px;color:var(--text-secondary);margin-top:5px;font-weight:700;">
@@ -565,7 +565,7 @@ export async function openRouteChartModal(route, allForwarders) {
         <div style="font-size:14px;color:var(--text-secondary);margin-bottom:6px;font-weight:800;">
           최다 최저가 제시 포워더
         </div>
-        <div style="font-size:1.75rem;font-weight:900;color:var(--accent);letter-spacing:-0.02em;margin-top:2px;">
+        <div style="font-size:1.75rem;font-weight:900;color:var(--accent);letter-spacing:-0.02em;margin-top:2px;line-height:1.2;">
           ${topWinnerObj ? topWinnerObj.name : '-'}
         </div>
         <div style="font-size:13.5px;color:var(--text-primary);margin-top:5px;font-weight:700;">
@@ -623,17 +623,17 @@ export async function openRouteChartModal(route, allForwarders) {
             const style = isMin
               ? 'color:#10b981;font-weight:900;background:rgba(16,185,129,0.15);font-size:14.5px;'
               : (isMax ? 'color:var(--danger);font-size:14px;font-weight:700;' : 'font-size:14px;color:var(--text-primary);');
-            return `<td style="padding:14px 18px;font-family:monospace;${style}">
+            return `<td style="padding:14px 18px;font-variant-numeric:tabular-nums;${style}">
               ${v !== null ? '$' + v.toLocaleString() : '<span style="color:var(--text-secondary);">-</span>'}
             </td>`;
           }).join('')}
-          <td style="color:#10b981;font-weight:900;padding:14px 18px;font-family:monospace;background:rgba(16,185,129,0.1);font-size:14.5px;">
+          <td style="color:#10b981;font-weight:900;padding:14px 18px;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.1);font-size:14.5px;">
             ${minV !== null ? '$' + minV.toLocaleString() : '-'}
           </td>
-          <td style="color:var(--danger);padding:14px 18px;font-family:monospace;font-size:14px;font-weight:800;">
+          <td style="color:var(--danger);padding:14px 18px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:800;">
             ${maxV !== null ? '$' + maxV.toLocaleString() : '-'}
           </td>
-          <td style="color:var(--warning);font-weight:800;padding:14px 18px;font-family:monospace;font-size:14px;">
+          <td style="color:var(--warning);font-weight:800;padding:14px 18px;font-variant-numeric:tabular-nums;font-size:14px;">
             ${spread !== null ? '$' + spread.toLocaleString() : '-'}
           </td>
         </tr>
