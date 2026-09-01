@@ -1,7 +1,7 @@
 import Chart from 'chart.js/auto';
 import { getToken } from '../store.js';
 
-// 포워더별 대표 색상 팔레트 (선명한 고대비 색상)
+// 포워더별 대표 색상 팔레트
 const COLORS = [
   '#0284c7', // Sky Blue
   '#d97706', // Deep Amber
@@ -142,9 +142,25 @@ export async function openRouteChartModal(route, allForwarders) {
             </div>
           </div>
 
-          <!-- 캔버스 영역 (대형 고선명 렌더링) -->
-          <div style="position:relative;height:480px;width:100%;">
+          <!-- 캔버스 영역 및 HTML 커스텀 툴팁 컨테이너 -->
+          <div id="rc-canvas-container" style="position:relative;height:480px;width:100%;">
             <canvas id="rc-canvas"></canvas>
+            
+            <!-- HTML 커스텀 툴팁 (크기 제한 없는 고선명 대형 툴팁) -->
+            <div id="rc-html-tooltip" style="
+              display: none;
+              position: absolute;
+              pointer-events: none;
+              background: var(--bg-surface, #1e293b);
+              border: 2px solid var(--border-color, #475569);
+              border-radius: 16px;
+              padding: 18px 24px;
+              box-shadow: 0 25px 60px rgba(0,0,0,0.55);
+              z-index: 1000;
+              min-width: 280px;
+              transition: opacity 0.15s ease, transform 0.1s ease;
+              font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif;
+            "></div>
           </div>
         </div>
 
@@ -344,6 +360,7 @@ export async function openRouteChartModal(route, allForwarders) {
       return {
         label: f.name,
         fid: f.id,
+        rawColor: color,
         data: periods.map(p => getVal(p.rates[f.id], rateKey)),
         borderColor: color,
         backgroundColor: color + '15',
@@ -406,10 +423,10 @@ export async function openRouteChartModal(route, allForwarders) {
 
     try {
       const canvasEl = document.getElementById('rc-canvas');
+      const tooltipEl = document.getElementById('rc-html-tooltip');
       if (!canvasEl) return;
       const ctx = canvasEl.getContext('2d');
 
-      // 고해상도 Retina 배율 (모니터 확대율 125%/150% 완벽 대응)
       const dpr = Math.max(window.devicePixelRatio || 1, 2);
 
       chartInstance = new Chart(ctx, {
@@ -426,57 +443,112 @@ export async function openRouteChartModal(route, allForwarders) {
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.97)' : 'rgba(255, 255, 255, 0.98)',
-              borderColor: isDark ? '#475569' : '#94a3b8',
-              borderWidth: 2,
-              titleColor: isDark ? '#f8fafc' : '#0f172a',
-              titleFont: { size: 20, weight: '900', family: "inherit" },
-              titleSpacing: 14,
-              bodyColor: isDark ? '#e2e8f0' : '#0f172a',
-              bodyFont: { size: 17, weight: '800', family: "inherit" },
-              bodySpacing: 10,
-              footerColor: isDark ? '#94a3b8' : '#475569',
-              footerFont: { size: 16, weight: '700', family: "inherit" },
-              footerSpacing: 10,
-              padding: 24,
-              boxPadding: 10,
-              caretSize: 10,
-              cornerRadius: 16,
-              boxShadow: '0 25px 50px rgba(0,0,0,0.4)',
-              callbacks: {
-                title: items => `📅 ${items[0].label}월 운임 동향 (${currentFt.toUpperCase()} 기준)`,
-                label: item => {
-                  if (item.dataset.label && item.dataset.label.startsWith('_')) return null;
-                  const v = item.raw;
-                  if (v == null) return `  ${item.dataset.label}: 미제출`;
-                  const isMin = item.dataset.label === '★ 최저 입찰가';
-                  const icon = isMin ? '🟢' : '▪';
-                  return ` ${icon} ${item.dataset.label} : $${Number(v).toLocaleString()}`;
-                },
-                afterBody: items => {
-                  const idx = items[0].dataIndex;
-                  const mm = minMaxArr[idx];
-                  if (!mm || mm.min == null || mm.max == null || mm.min === mm.max) return [];
-                  const spread = mm.max - mm.min;
-                  return [
-                    '─────────────────────────────',
-                    `📊 포워더 견적 격차 (Spread): $${spread.toLocaleString()}`,
-                    `   (최저 $${mm.min.toLocaleString()} ~ 최고 $${mm.max.toLocaleString()})`
-                  ];
+              // 기본 캔버스 툴팁 비활성화하고 완벽한 HTML 커스텀 툴팁 사용
+              enabled: false,
+              external: function(context) {
+                if (!tooltipEl) return;
+                const tooltipModel = context.tooltip;
+
+                if (tooltipModel.opacity === 0) {
+                  tooltipEl.style.display = 'none';
+                  return;
                 }
+
+                const idx = tooltipModel.dataPoints?.[0]?.dataIndex;
+                if (idx === undefined || !periods[idx]) return;
+
+                const curPeriod = periods[idx];
+                const mm = minMaxArr[idx];
+
+                // 툴팁 HTML 내용 생성 (대형 폰트와 선명한 레이아웃)
+                let innerHtml = `
+                  <div style="font-size: 16.5px; font-weight: 900; color: var(--text-primary, #fff); border-bottom: 1.5px solid var(--border-color, #475569); padding-bottom: 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>📅 ${curPeriod.label}월 운임 동향</span>
+                    <span style="font-size: 13.5px; padding: 2px 8px; border-radius: 6px; background: var(--accent); color: #fff; font-weight: 800;">${currentFt.toUpperCase()}</span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                `;
+
+                // 최저 입찰가 행
+                if (mm && mm.min !== null) {
+                  innerHtml += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: 15.5px; font-weight: 900; color: #10b981; background: rgba(16,185,129,0.12); padding: 5px 10px; border-radius: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981;"></span>
+                        <span>★ 최저 입찰가</span>
+                      </div>
+                      <span style="font-family: monospace; font-size: 16.5px; font-variant-numeric: tabular-nums;">$${mm.min.toLocaleString()}</span>
+                    </div>
+                  `;
+                }
+
+                // 각 포워더별 제출 운임 행
+                finalForwarders.filter(f => activeFids.has(f.id)).forEach((f, i) => {
+                  const rateObj = curPeriod.rates[f.id];
+                  const val = getVal(rateObj, rateKey);
+                  const color = COLORS[i % COLORS.length];
+
+                  innerHtml += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: 14.5px; font-weight: 700; color: var(--text-primary, #e2e8f0); padding: 2px 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: ${color};"></span>
+                        <span>${f.name}</span>
+                      </div>
+                      <span style="font-family: monospace; font-size: 15px; font-variant-numeric: tabular-nums; ${val !== null ? '' : 'color: var(--text-muted); font-size: 13.5px;'}">
+                        ${val !== null ? '$' + val.toLocaleString() : '미제출'}
+                      </span>
+                    </div>
+                  `;
+                });
+
+                innerHtml += `</div>`;
+
+                // 하단 견적 격차 (Spread)
+                if (mm && mm.min !== null && mm.max !== null && mm.min !== mm.max) {
+                  const spread = mm.max - mm.min;
+                  innerHtml += `
+                    <div style="border-top: 1.5px dashed var(--border-color, #475569); padding-top: 10px; font-size: 13.5px; color: var(--text-secondary, #94a3b8); display: flex; flex-direction: column; gap: 3px;">
+                      <div style="display: flex; justify-content: space-between; font-weight: 800; color: var(--warning, #f59e0b); font-size: 14.5px;">
+                        <span>📊 견적 격차 (Spread)</span>
+                        <span style="font-family: monospace; font-variant-numeric: tabular-nums;">$${spread.toLocaleString()}</span>
+                      </div>
+                      <div style="font-size: 12.5px; color: var(--text-secondary);">
+                        최저 $${mm.min.toLocaleString()} ~ 최고 $${mm.max.toLocaleString()}
+                      </div>
+                    </div>
+                  `;
+                }
+
+                tooltipEl.innerHTML = innerHtml;
+                tooltipEl.style.display = 'block';
+
+                // 위치 계산 (마우스 커서 기준 및 캔버스 경계 감지)
+                const containerRect = document.getElementById('rc-canvas-container').getBoundingClientRect();
+                const tooltipWidth = tooltipEl.offsetWidth || 300;
+                let left = tooltipModel.caretX + 15;
+                let top = tooltipModel.caretY - 20;
+
+                // 오른쪽 경계를 벗어날 경우 왼쪽에 표시
+                if (left + tooltipWidth > containerRect.width - 20) {
+                  left = tooltipModel.caretX - tooltipWidth - 15;
+                }
+                if (top < 10) top = 10;
+
+                tooltipEl.style.left = left + 'px';
+                tooltipEl.style.top = top + 'px';
               }
             }
           },
           scales: {
             x: {
               grid: { color: gridC },
-              ticks: { color: lblC, font: { size: 15, weight: '800', family: "inherit" }, padding: 8 }
+              ticks: { color: lblC, font: { size: 14, weight: '800', family: "inherit" }, padding: 8 }
             },
             y: {
               grid: { color: gridC },
               ticks: {
                 color: lblC,
-                font: { size: 15, weight: '800', family: "inherit" },
+                font: { size: 14, weight: '800', family: "inherit" },
                 padding: 8,
                 callback: v => '$' + Number(v).toLocaleString()
               }
