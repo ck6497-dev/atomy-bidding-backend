@@ -297,9 +297,9 @@ export async function openRouteChartModal(route, allForwarders) {
   }
 
   function calcMinMax(periods, rateKey) {
+    // 포워더 칩 선택(On/Off)과 무관하게 전체 포워더의 실제 제출가 기준으로 통계 및 벤치마크 계산
     return periods.map(p => {
       const vals = finalForwarders
-        .filter(f => activeFids.has(f.id))
         .map(f => getVal(p.rates[f.id], rateKey))
         .filter(v => v !== null);
       return {
@@ -584,7 +584,6 @@ export async function openRouteChartModal(route, allForwarders) {
     }
 
     const minFw = finalForwarders.find(f =>
-      activeFids.has(f.id) &&
       lastPeriod.rates[f.id] &&
       Number(lastPeriod.rates[f.id][rateKey]) === lastMM.min
     );
