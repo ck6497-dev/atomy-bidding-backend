@@ -130,7 +130,7 @@ export async function openRouteChartModal(route, allForwarders) {
           <!-- 차트 상단 레이어 안내 배너 -->
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px;background:var(--bg-surface);border:1px solid var(--border-color);padding:10px 20px;border-radius:12px;font-size:13.5px;">
             <div style="display:flex;align-items:center;gap:8px;">
-              <span style="width:24px;height:0;border-top:3.5px dashed #10b981;display:inline-block;box-shadow:0 0 8px rgba(16,185,129,0.5);"></span>
+              <span style="width:26px;height:0;border-top:4.5px dashed #10b981;display:inline-block;box-shadow:0 0 10px rgba(16,185,129,0.7);"></span>
               <strong style="color:#10b981;font-size:14px;">★ 최저 제출가 (Bold Dashed)</strong>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
@@ -453,19 +453,19 @@ export async function openRouteChartModal(route, allForwarders) {
       tension: 0.3,
     };
 
-    // 최저 제출가 굵은 점선 라인 (포워더 선 가림 방지 및 기준선 역할)
+    // 최저 제출가 초대형 굵은 점선 라인 (포워더 선 가림 방지 및 기준선 역할)
     const minLine = {
       label: '★ 최저 제출가',
       data: minMaxArr.map(d => d.min),
       borderColor: '#10b981',
       backgroundColor: '#10b98125',
-      borderWidth: 3.5,
-      borderDash: [8, 5],
-      pointRadius: 4.5,
-      pointHoverRadius: 9,
+      borderWidth: 5.5,
+      borderDash: [10, 6],
+      pointRadius: 6.5,
+      pointHoverRadius: 11,
       pointBackgroundColor: '#10b981',
       pointBorderColor: '#ffffff',
-      pointBorderWidth: 2,
+      pointBorderWidth: 2.5,
       tension: 0.3,
       fill: false,
     };
