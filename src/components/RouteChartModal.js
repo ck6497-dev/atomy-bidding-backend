@@ -41,10 +41,10 @@ export async function openRouteChartModal(route, allForwarders) {
 
   const overlay = document.createElement('div');
   overlay.id = 'rc-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.8);z-index:2000;display:flex;align-items:center;justify-content:center;padding:12px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.8);z-index:2000;display:flex;align-items:center;justify-content:center;padding:12px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;overscroll-behavior:contain;';
 
   overlay.innerHTML = `
-    <div id="rc-modal" style="font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:20px;width:96vw;max-width:1460px;height:94vh;max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 35px 90px rgba(0,0,0,0.65);">
+    <div id="rc-modal" style="font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:20px;width:96vw;max-width:1460px;height:94vh;max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 35px 90px rgba(0,0,0,0.65);overscroll-behavior:contain;">
       
       <!-- 1. 최상단 헤더 -->
       <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 30px;border-bottom:1px solid var(--border-color);flex-shrink:0;background:var(--bg-surface);">
@@ -84,7 +84,7 @@ export async function openRouteChartModal(route, allForwarders) {
       </div>
 
       <!-- 메인 스크롤 콘텐츠 영역 -->
-      <div style="flex:1;overflow-y:auto;padding:20px 30px;min-height:0;display:flex;flex-direction:column;gap:18px;">
+      <div style="flex:1;overflow-y:auto;padding:20px 30px;min-height:0;display:flex;flex-direction:column;gap:18px;overscroll-behavior:contain;">
         
         <!-- 로딩 표시 -->
         <div id="rc-loading" style="display:flex;align-items:center;justify-content:center;height:450px;color:var(--text-secondary);font-size:var(--font-lg);gap:10px;font-weight:700;">
@@ -172,6 +172,8 @@ export async function openRouteChartModal(route, allForwarders) {
     </div>
   `;
 
+  // 뒷배경 스크롤 일시 정지 (Body Scroll Lock)
+  document.body.style.overflow = 'hidden';
   document.body.appendChild(overlay);
 
   let currentFt = '40ft';
@@ -181,6 +183,8 @@ export async function openRouteChartModal(route, allForwarders) {
   let hoveredFid = null;
 
   const handleClose = () => {
+    // 뒷배경 스크롤 복원
+    document.body.style.overflow = '';
     if (chartInstance) {
       try { chartInstance.destroy(); } catch (e) {}
     }
