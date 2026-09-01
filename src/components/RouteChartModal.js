@@ -1,8 +1,7 @@
-import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
-Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
+import Chart from 'chart.js/auto';
 import { getToken } from '../store.js';
 
-// 포워더별 대표 색상 팔레트 (다크/라이트 공용 고대비)
+// 포워더별 대표 색상 팔레트
 const COLORS = [
   '#0284c7', // Sky Blue
   '#f59e0b', // Amber
@@ -19,10 +18,13 @@ const COLORS = [
 ];
 
 async function fetchRouteHistory(routeId) {
-  const res = await fetch('/api/rates/history/' + routeId, {
+  const res = await fetch('/api/rates/history/' + encodeURIComponent(routeId), {
     headers: { 'Authorization': 'Bearer ' + getToken() }
   });
-  if (!res.ok) throw new Error('history fetch failed');
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`데이터 조회 실패 (${res.status}): ${errText}`);
+  }
   return res.json();
 }
 
@@ -30,17 +32,17 @@ export async function openRouteChartModal(route, allForwarders) {
   const existing = document.getElementById('rc-overlay');
   if (existing) existing.remove();
 
-  // 배정된 포워더 목록 (없으면 전체 포워더 중 운임 데이터가 있는 포워더 사용)
-  let assignedForwarders = allForwarders.filter(
+  // 기본 배정 포워더 (없으면 전체 전달)
+  let assignedForwarders = (allForwarders || []).filter(
     f => f.assigned_routes && f.assigned_routes.includes(route.id)
   );
   if (assignedForwarders.length === 0) {
-    assignedForwarders = allForwarders;
+    assignedForwarders = allForwarders || [];
   }
 
   const overlay = document.createElement('div');
   overlay.id = 'rc-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.2s ease-out;';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
 
   overlay.innerHTML = `
     <div id="rc-modal" style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:18px;width:100%;max-width:1120px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 35px 90px rgba(0,0,0,0.6);">
@@ -117,7 +119,7 @@ export async function openRouteChartModal(route, allForwarders) {
         
         <!-- 로딩 표시 -->
         <div id="rc-loading" style="display:flex;align-items:center;justify-content:center;height:380px;color:var(--text-muted);font-size:var(--font-md);gap:10px;">
-          <span style="animation:spin 1s infinite linear;">⏳</span> 운임 이력 데이터 분석 중...
+          ⏳ 운임 이력 데이터 분석 중...
         </div>
 
         <!-- 1. 차트 뷰 -->
@@ -134,7 +136,7 @@ export async function openRouteChartModal(route, allForwarders) {
               <span style="color:var(--text-secondary);">포워더 견적 스펙트럼 (Min-Max 밴드)</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px;color:var(--text-muted);margin-left:auto;">
-              <span>💡 팁: 선 위에 마우스를 올리면 상세 견적 격차(Spread)를 확인하실 수 있습니다.</span>
+              <span>💡 선 위에 마우스를 올리면 상세 견적 격차(Spread)를 확인하실 수 있습니다.</span>
             </div>
           </div>
 
@@ -163,9 +165,10 @@ export async function openRouteChartModal(route, allForwarders) {
   let historyData = [];
   let hoveredFid = null;
 
-  // 닫기 이벤트
   const handleClose = () => {
-    if (chartInstance) chartInstance.destroy();
+    if (chartInstance) {
+      try { chartInstance.destroy(); } catch (e) {}
+    }
     overlay.remove();
   };
   document.getElementById('rc-close').addEventListener('click', handleClose);
@@ -178,22 +181,45 @@ export async function openRouteChartModal(route, allForwarders) {
   };
   window.addEventListener('keydown', handleKeydown);
 
-  // 데이터 조회
+  // 데이터 로드
   try {
     historyData = await fetchRouteHistory(route.id);
-  } catch (e) {
-    document.getElementById('rc-loading').innerHTML = '❌ 운임 데이터를 불러올 수 없습니다.';
+  } catch (err) {
+    console.error('[RouteChart] fetch error:', err);
+    document.getElementById('rc-loading').innerHTML = `❌ 데이터 로드 실패: ${err.message}`;
     return;
   }
 
-  // 데이터가 실제로 존재하는 포워더 목록 필터링
-  const activeForwarderIdsInData = new Set(historyData.map(r => r.forwarder_id));
-  const validForwarders = assignedForwarders.filter(f => activeForwarderIdsInData.has(f.id));
-  const finalForwarders = validForwarders.length > 0 ? validForwarders : assignedForwarders;
+  // 데이터에 나타나는 포워더 목록 추출
+  const fwdMapInData = {};
+  historyData.forEach(r => {
+    if (r.forwarder_id && !fwdMapInData[r.forwarder_id]) {
+      const match = (allForwarders || []).find(f => f.id === r.forwarder_id);
+      fwdMapInData[r.forwarder_id] = match ? match.name : (r.forwarder_name || r.forwarder_id);
+    }
+  });
 
+  // 최종 포워더 목록 (assignedForwarders + DB에 있는 포워더 합집합)
+  const finalForwardersList = [];
+  const addedFids = new Set();
+
+  assignedForwarders.forEach(f => {
+    if (!addedFids.has(f.id)) {
+      finalForwardersList.push(f);
+      addedFids.add(f.id);
+    }
+  });
+
+  Object.keys(fwdMapInData).forEach(fid => {
+    if (!addedFids.has(fid)) {
+      finalForwardersList.push({ id: fid, name: fwdMapInData[fid] });
+      addedFids.add(fid);
+    }
+  });
+
+  const finalForwarders = finalForwardersList.length > 0 ? finalForwardersList : assignedForwarders;
   let activeFids = new Set(finalForwarders.map(f => f.id));
 
-  // 포워더 칩 생성 헬퍼
   function renderChips() {
     const chipsContainer = document.getElementById('rc-chips');
     if (!chipsContainer) return;
@@ -215,7 +241,7 @@ export async function openRouteChartModal(route, allForwarders) {
           cursor: pointer;
           font-size: 11px;
           font-weight: 700;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.2s ease;
           border: 1.5px solid ${isVisible ? c : 'var(--border-color)'};
           background: ${isVisible ? (isHovered ? c + '45' : c + '20') : 'transparent'};
           color: ${isVisible ? 'var(--text-primary)' : 'var(--text-muted)'};
@@ -232,18 +258,15 @@ export async function openRouteChartModal(route, allForwarders) {
     }).join('');
   }
 
-  renderChips();
-
-  // 입찰 회차별 그룹화 빌더
   function buildPeriods() {
     const map = {};
-    historyData.forEach(r => {
+    (historyData || []).forEach(r => {
       if (!map[r.bidding_id]) {
         map[r.bidding_id] = {
           biddingId: r.bidding_id,
-          label: String(r.year).slice(2) + '.' + String(r.month).padStart(2, '0'),
-          year: r.year,
-          month: r.month,
+          label: String(r.year || '').slice(-2) + '.' + String(r.month || '').padStart(2, '0'),
+          year: Number(r.year) || 0,
+          month: Number(r.month) || 0,
           rates: {}
         };
       }
@@ -270,23 +293,24 @@ export async function openRouteChartModal(route, allForwarders) {
     });
   }
 
-  // 1. 차트 렌더링 함수
   function renderChart() {
-    const periods = buildPeriods();
     const loadEl = document.getElementById('rc-loading');
     const chartView = document.getElementById('rc-chart-view');
     const statsEl = document.getElementById('rc-stats');
+    const periods = buildPeriods();
 
     if (periods.length === 0) {
-      loadEl.style.display = 'flex';
-      chartView.style.display = 'none';
-      statsEl.style.display = 'none';
-      loadEl.innerHTML = '📭 입찰 운임 데이터가 없습니다.<br><small style="margin-top:8px;display:block;">포워더가 운임을 제출하면 차트가 활성화됩니다.</small>';
+      if (loadEl) {
+        loadEl.style.display = 'flex';
+        loadEl.innerHTML = '📭 해당 노선의 입찰 운임 데이터가 없습니다.<br><small style="margin-top:8px;display:block;">포워더가 운임을 입력하면 차트가 활성화됩니다.</small>';
+      }
+      if (chartView) chartView.style.display = 'none';
+      if (statsEl) statsEl.style.display = 'none';
       return;
     }
 
-    loadEl.style.display = 'none';
-    chartView.style.display = 'block';
+    if (loadEl) loadEl.style.display = 'none';
+    if (chartView) chartView.style.display = 'block';
 
     const rateKey = currentFt === '20ft' ? 'rate_20ft' : 'rate_40ft';
     const labels = periods.map(p => p.label);
@@ -296,7 +320,7 @@ export async function openRouteChartModal(route, allForwarders) {
     const gridC = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
     const lblC = isDark ? '#94a3b8' : '#4a5e72';
 
-    // 포워더별 데이터셋 구성 (Highlight & Dim 적용)
+    // 포워더별 데이터셋
     const fwDatasets = finalForwarders.map((f, i) => {
       const color = COLORS[i % COLORS.length];
       const isHovered = hoveredFid === f.id;
@@ -304,17 +328,14 @@ export async function openRouteChartModal(route, allForwarders) {
 
       let borderWidth = 2;
       let pointRadius = 3.5;
-      let alpha = '0.35';
 
       if (hasHoverTarget) {
         if (isHovered) {
           borderWidth = 3.5;
           pointRadius = 6;
-          alpha = '1.0';
         } else {
-          borderWidth = 1.5;
+          borderWidth = 1.2;
           pointRadius = 1;
-          alpha = '0.12';
         }
       }
 
@@ -330,129 +351,129 @@ export async function openRouteChartModal(route, allForwarders) {
         pointBackgroundColor: color,
         pointBorderColor: '#fff',
         pointBorderWidth: 1.5,
-        tension: 0.35,
+        tension: 0.3,
         hidden: !activeFids.has(f.id),
         spanGaps: false,
-        order: isHovered ? 2 : 10,
       };
     });
 
-    // Min-Max 밴드 레이어
+    // Min-Max 밴드
     const bandTop = {
       label: '_band_top',
       data: minMaxArr.map(d => d.max),
       borderColor: 'transparent',
-      backgroundColor: isDark ? 'rgba(148,163,184,0.12)' : 'rgba(100,116,139,0.08)',
+      backgroundColor: isDark ? 'rgba(148,163,184,0.14)' : 'rgba(100,116,139,0.09)',
       borderWidth: 0,
       pointRadius: 0,
-      fill: '+1',
-      tension: 0.35,
-      order: 20
+      fill: 1, // fill to bandBot
+      tension: 0.3,
     };
 
     const bandBot = {
       label: '_band_bot',
       data: minMaxArr.map(d => d.min),
-      borderColor: isDark ? 'rgba(148,163,184,0.25)' : 'rgba(100,116,139,0.2)',
+      borderColor: isDark ? 'rgba(148,163,184,0.3)' : 'rgba(100,116,139,0.25)',
       backgroundColor: 'transparent',
       borderWidth: 1,
       borderDash: [4, 4],
       pointRadius: 0,
       fill: false,
-      tension: 0.35,
-      order: 21
+      tension: 0.3,
     };
 
-    // 최저 낙찰가 굵은 초록선
+    // 최저 낙찰가 초록 라인
     const minLine = {
       label: '★ 자사 최저 낙찰가',
       data: minMaxArr.map(d => d.min),
       borderColor: '#10b981',
-      backgroundColor: '#10b98120',
+      backgroundColor: '#10b98125',
       borderWidth: 4,
       pointRadius: 5,
       pointHoverRadius: 9,
       pointBackgroundColor: '#10b981',
       pointBorderColor: '#fff',
       pointBorderWidth: 2,
-      tension: 0.35,
+      tension: 0.3,
       fill: false,
-      order: 1
     };
 
     if (chartInstance) {
-      chartInstance.destroy();
+      try { chartInstance.destroy(); } catch (e) {}
       chartInstance = null;
     }
 
-    const ctx = document.getElementById('rc-canvas').getContext('2d');
-    chartInstance = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [bandTop, bandBot, minLine, ...fwDatasets]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            borderColor: isDark ? '#334155' : '#cbd5e1',
-            borderWidth: 1,
-            titleColor: isDark ? '#f8fafc' : '#0f172a',
-            bodyColor: isDark ? '#94a3b8' : '#334155',
-            padding: 14,
-            boxPadding: 4,
-            cornerRadius: 10,
-            callbacks: {
-              title: items => `📅 ${items[0].label}월 운임 동향 (${currentFt.toUpperCase()} 기준)`,
-              label: item => {
-                if (item.dataset.label.startsWith('_')) return null;
-                const v = item.raw;
-                if (v == null) return `   ${item.dataset.label}: 미제출`;
-                const isMin = item.dataset.label === '★ 자사 최저 낙찰가';
-                const icon = isMin ? '🟢' : '  ';
-                return `${icon} ${item.dataset.label}: $${Number(v).toLocaleString()}`;
-              },
-              afterBody: items => {
-                const idx = items[0].dataIndex;
-                const mm = minMaxArr[idx];
-                if (!mm || mm.min == null || mm.max == null || mm.min === mm.max) return [];
-                const spread = mm.max - mm.min;
-                return [
-                  '',
-                  `📊 포워더 견적 격차 (Spread): $${spread.toLocaleString()}`,
-                  `   (최저 $${mm.min.toLocaleString()} ~ 최고 $${mm.max.toLocaleString()})`
-                ];
+    try {
+      const canvasEl = document.getElementById('rc-canvas');
+      if (!canvasEl) return;
+      const ctx = canvasEl.getContext('2d');
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [bandTop, bandBot, minLine, ...fwDatasets]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+              borderColor: isDark ? '#334155' : '#cbd5e1',
+              borderWidth: 1,
+              titleColor: isDark ? '#f8fafc' : '#0f172a',
+              bodyColor: isDark ? '#94a3b8' : '#334155',
+              padding: 14,
+              cornerRadius: 10,
+              callbacks: {
+                title: items => `📅 ${items[0].label}월 운임 동향 (${currentFt.toUpperCase()} 기준)`,
+                label: item => {
+                  if (item.dataset.label && item.dataset.label.startsWith('_')) return null;
+                  const v = item.raw;
+                  if (v == null) return `   ${item.dataset.label}: 미제출`;
+                  const isMin = item.dataset.label === '★ 자사 최저 낙찰가';
+                  const icon = isMin ? '🟢' : '  ';
+                  return `${icon} ${item.dataset.label}: $${Number(v).toLocaleString()}`;
+                },
+                afterBody: items => {
+                  const idx = items[0].dataIndex;
+                  const mm = minMaxArr[idx];
+                  if (!mm || mm.min == null || mm.max == null || mm.min === mm.max) return [];
+                  const spread = mm.max - mm.min;
+                  return [
+                    '',
+                    `📊 포워더 견적 격차 (Spread): $${spread.toLocaleString()}`,
+                    `   (최저 $${mm.min.toLocaleString()} ~ 최고 $${mm.max.toLocaleString()})`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: gridC },
+              ticks: { color: lblC, font: { size: 11, weight: '600' } }
+            },
+            y: {
+              grid: { color: gridC },
+              ticks: {
+                color: lblC,
+                font: { size: 11 },
+                callback: v => '$' + Number(v).toLocaleString()
               }
             }
           }
-        },
-        scales: {
-          x: {
-            grid: { color: gridC },
-            ticks: { color: lblC, font: { size: 11, weight: '600' } }
-          },
-          y: {
-            grid: { color: gridC },
-            ticks: {
-              color: lblC,
-              font: { size: 11 },
-              callback: v => '$' + Number(v).toLocaleString()
-            }
-          }
         }
-      }
-    });
+      });
+    } catch (chartErr) {
+      console.error('[RouteChart] Chart init failed:', chartErr);
+    }
 
-    // 4개 KPI 요약 카드 계산 및 렌더링
     renderKpiStats(periods, minMaxArr, rateKey);
   }
 
-  // 2. KPI 요약 카드 렌더링
   function renderKpiStats(periods, minMaxArr, rateKey) {
     const statsEl = document.getElementById('rc-stats');
     if (!statsEl) return;
@@ -470,14 +491,12 @@ export async function openRouteChartModal(route, allForwarders) {
       return;
     }
 
-    // 최근 최저가 포워더 찾기
     const minFw = finalForwarders.find(f =>
       activeFids.has(f.id) &&
       lastPeriod.rates[f.id] &&
       Number(lastPeriod.rates[f.id][rateKey]) === lastMM.min
     );
 
-    // 최다 최저가 수주 포워더 통계 계산
     const winCounts = {};
     finalForwarders.forEach(f => { winCounts[f.id] = 0; });
     periods.forEach(p => {
@@ -496,13 +515,11 @@ export async function openRouteChartModal(route, allForwarders) {
     const topWinnerEntry = Object.entries(winCounts).sort((a, b) => b[1] - a[1])[0];
     const topWinnerObj = finalForwarders.find(f => f.id === topWinnerEntry?.[0]);
 
-    // 전체 기간 평균 스프레드
     const validSpreads = minMaxArr.filter(m => m.min !== null && m.max !== null).map(m => m.max - m.min);
     const avgSpread = validSpreads.length ? Math.round(validSpreads.reduce((a, b) => a + b, 0) / validSpreads.length) : 0;
 
     statsEl.style.display = 'grid';
     statsEl.innerHTML = `
-      <!-- KPI 1: 최근 최저가 -->
       <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:3px solid #10b981;border-radius:12px;padding:14px 16px;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:600;">
           최근 최저 낙찰가 (${lastPeriod.label}월)
@@ -515,7 +532,6 @@ export async function openRouteChartModal(route, allForwarders) {
         </div>
       </div>
 
-      <!-- KPI 2: 최근 최고가 -->
       <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:3px solid var(--danger);border-radius:12px;padding:14px 16px;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:600;">
           최근 최고 제출가 (${lastPeriod.label}월)
@@ -528,7 +544,6 @@ export async function openRouteChartModal(route, allForwarders) {
         </div>
       </div>
 
-      <!-- KPI 3: 견적 격차 (Spread) -->
       <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:3px solid var(--warning);border-radius:12px;padding:14px 16px;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:600;">
           최근 견적 격차 (Spread)
@@ -541,7 +556,6 @@ export async function openRouteChartModal(route, allForwarders) {
         </div>
       </div>
 
-      <!-- KPI 4: 최다 최저가 포워더 -->
       <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:3px solid var(--accent);border-radius:12px;padding:14px 16px;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:600;">
           최다 최저가 제시 포워더
@@ -556,7 +570,6 @@ export async function openRouteChartModal(route, allForwarders) {
     `;
   }
 
-  // 3. 원장 데이터 테이블 렌더링 함수
   function renderTable() {
     const periods = buildPeriods();
     const rateKey = currentFt === '20ft' ? 'rate_20ft' : 'rate_40ft';
@@ -633,7 +646,7 @@ export async function openRouteChartModal(route, allForwarders) {
       renderChart();
     } else {
       if (chartInstance) {
-        chartInstance.destroy();
+        try { chartInstance.destroy(); } catch (e) {}
         chartInstance = null;
       }
       renderTable();
@@ -642,7 +655,6 @@ export async function openRouteChartModal(route, allForwarders) {
 
   showContent();
 
-  // 뷰 탭 전환 이벤트
   document.getElementById('rc-tab-chart').addEventListener('click', () => {
     activeTab = 'chart';
     document.getElementById('rc-tab-chart').style.background = 'var(--accent)';
@@ -661,7 +673,6 @@ export async function openRouteChartModal(route, allForwarders) {
     showContent();
   });
 
-  // 20FT / 40FT 전환 이벤트
   document.getElementById('rc-ft20').addEventListener('click', () => {
     currentFt = '20ft';
     document.getElementById('rc-ft20').style.background = 'var(--accent)';
@@ -680,10 +691,8 @@ export async function openRouteChartModal(route, allForwarders) {
     showContent();
   });
 
-  // 포워더 칩 클릭 (On/Off 토글) 및 호버 (Highlight & Dim) 이벤트 위임
   const chipsEl = document.getElementById('rc-chips');
   if (chipsEl) {
-    // 1. 클릭 토글
     chipsEl.addEventListener('click', e => {
       const chip = e.target.closest('[data-fid]');
       if (!chip) return;
@@ -696,7 +705,6 @@ export async function openRouteChartModal(route, allForwarders) {
       showContent();
     });
 
-    // 2. 마우스 엔터 (Highlight)
     chipsEl.addEventListener('mouseover', e => {
       const chip = e.target.closest('[data-fid]');
       if (!chip) return;
@@ -707,7 +715,6 @@ export async function openRouteChartModal(route, allForwarders) {
       }
     });
 
-    // 3. 마우스 리브 (Dim 해제)
     chipsEl.addEventListener('mouseout', e => {
       const chip = e.target.closest('[data-fid]');
       if (!chip) return;
@@ -716,7 +723,6 @@ export async function openRouteChartModal(route, allForwarders) {
     });
   }
 
-  // 전체 선택 / 해제 버튼
   document.getElementById('rc-all')?.addEventListener('click', () => {
     finalForwarders.forEach(f => activeFids.add(f.id));
     showContent();
