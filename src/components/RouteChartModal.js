@@ -44,24 +44,24 @@ export async function openRouteChartModal(route, allForwarders) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:2000;display:flex;align-items:center;justify-content:center;padding:12px;';
 
   overlay.innerHTML = `
-    <div id="rc-modal" style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:20px;width:96vw;max-width:1440px;height:94vh;max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 35px 90px rgba(0,0,0,0.65);">
+    <div id="rc-modal" style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:20px;width:96vw;max-width:1460px;height:94vh;max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 35px 90px rgba(0,0,0,0.65);">
       
       <!-- 상단 헤더 -->
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 28px;border-bottom:1px solid var(--border-color);flex-shrink:0;background:var(--bg-surface);">
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:46px;height:46px;border-radius:14px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1.5rem;border:1px solid var(--accent);">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 30px;border-bottom:1px solid var(--border-color);flex-shrink:0;background:var(--bg-surface);">
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div style="width:50px;height:50px;border-radius:14px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1.7rem;border:1.5px solid var(--accent);">
             📊
           </div>
           <div>
-            <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-size:1.35rem;font-weight:900;color:var(--text-primary);letter-spacing:-0.02em;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-size:1.6rem;font-weight:900;color:var(--text-primary);letter-spacing:-0.02em;">
                 ${route.country} — ${route.pod}
               </span>
-              <span style="font-size:var(--font-xs);padding:3px 10px;border-radius:8px;background:var(--bg-hover);color:var(--text-secondary);font-weight:700;border:1px solid var(--border-color);">
+              <span style="font-size:13px;padding:4px 12px;border-radius:8px;background:var(--bg-hover);color:var(--text-secondary);font-weight:800;border:1px solid var(--border-color);">
                 No.${route.no}
               </span>
             </div>
-            <div style="font-size:var(--font-xs);color:var(--text-muted);margin-top:3px;">
+            <div style="font-size:13px;color:var(--text-muted);margin-top:4px;font-weight:500;">
               입찰 회차별 포워더 견적 스펙트럼 & 자사 최저 낙찰가 벤치마킹 대시보드
             </div>
           </div>
@@ -70,43 +70,43 @@ export async function openRouteChartModal(route, allForwarders) {
         <div style="display:flex;align-items:center;gap:14px;">
           <!-- 뷰 탭 전환 -->
           <div style="display:flex;gap:4px;background:var(--bg-primary);border-radius:12px;padding:4px;border:1px solid var(--border-color);">
-            <button id="rc-tab-chart" style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;font-size:var(--font-sm);font-weight:700;background:var(--accent);color:#fff;transition:all 0.15s;">
+            <button id="rc-tab-chart" style="padding:9px 22px;border-radius:9px;border:none;cursor:pointer;font-size:14px;font-weight:800;background:var(--accent);color:#fff;transition:all 0.15s;">
               📈 바잉파워 차트
             </button>
-            <button id="rc-tab-table" style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;font-size:var(--font-sm);font-weight:700;background:transparent;color:var(--text-secondary);transition:all 0.15s;">
+            <button id="rc-tab-table" style="padding:9px 22px;border-radius:9px;border:none;cursor:pointer;font-size:14px;font-weight:800;background:transparent;color:var(--text-secondary);transition:all 0.15s;">
               📋 원장 데이터 (Table)
             </button>
           </div>
-          <button id="rc-close" style="width:38px;height:38px;border-radius:50%;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" title="닫기 (ESC)">
+          <button id="rc-close" style="width:40px;height:40px;border-radius:50%;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-size:1.3rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" title="닫기 (ESC)">
             ✕
           </button>
         </div>
       </div>
 
       <!-- 컨트롤 바: 포워더 칩 필터 & 20FT/40FT 토글 -->
-      <div style="padding:14px 28px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;flex-shrink:0;background:var(--bg-secondary);">
-        <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:320px;">
+      <div style="padding:14px 30px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;flex-shrink:0;background:var(--bg-secondary);">
+        <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:340px;">
           <div style="display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-size:12px;font-weight:700;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">
-              🏢 포워더 선택 & 하이라이트 <span style="font-weight:400;color:var(--text-muted);">(이름에 마우스를 올리면 해당 선만 굵게 강조됩니다)</span>
+            <span style="font-size:13.5px;font-weight:800;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">
+              🏢 포워더 선택 & 하이라이트 <span style="font-weight:500;color:var(--text-muted);font-size:12.5px;">(이름에 마우스를 올리면 해당 선만 굵게 강조됩니다)</span>
             </span>
-            <div style="display:flex;gap:8px;">
-              <button id="rc-all" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;font-weight:700;padding:0;">전체 선택</button>
+            <div style="display:flex;gap:10px;">
+              <button id="rc-all" style="font-size:13px;color:var(--accent);background:none;border:none;cursor:pointer;font-weight:800;padding:0;">전체 선택</button>
               <span style="color:var(--border-color);">|</span>
-              <button id="rc-none" style="font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;font-weight:700;padding:0;">전체 해제</button>
+              <button id="rc-none" style="font-size:13px;color:var(--text-muted);background:none;border:none;cursor:pointer;font-weight:800;padding:0;">전체 해제</button>
             </div>
           </div>
           <div id="rc-chips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
         </div>
 
         <!-- 20FT / 40FT 스위처 -->
-        <div style="display:flex;align-items:center;gap:10px;border-left:1px solid var(--border-color);padding-left:20px;">
-          <span style="font-size:12px;font-weight:700;color:var(--text-muted);">컨테이너 규격:</span>
+        <div style="display:flex;align-items:center;gap:12px;border-left:1.5px solid var(--border-color);padding-left:22px;">
+          <span style="font-size:13.5px;font-weight:800;color:var(--text-primary);">컨테이너 규격:</span>
           <div style="display:flex;gap:4px;background:var(--bg-primary);border-radius:12px;padding:4px;border:1px solid var(--border-color);">
-            <button id="rc-ft20" style="padding:6px 18px;border-radius:8px;border:none;cursor:pointer;font-size:var(--font-sm);font-weight:800;background:transparent;color:var(--text-secondary);transition:all 0.15s;">
+            <button id="rc-ft20" style="padding:7px 20px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:800;background:transparent;color:var(--text-secondary);transition:all 0.15s;">
               20FT
             </button>
-            <button id="rc-ft40" style="padding:6px 18px;border-radius:8px;border:none;cursor:pointer;font-size:var(--font-sm);font-weight:800;background:var(--accent);color:#fff;transition:all 0.15s;">
+            <button id="rc-ft40" style="padding:7px 20px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:800;background:var(--accent);color:#fff;transition:all 0.15s;">
               40FT
             </button>
           </div>
@@ -114,10 +114,10 @@ export async function openRouteChartModal(route, allForwarders) {
       </div>
 
       <!-- 메인 콘텐츠 영역 -->
-      <div style="flex:1;overflow-y:auto;padding:22px 28px;min-height:0;display:flex;flex-direction:column;gap:20px;">
+      <div style="flex:1;overflow-y:auto;padding:22px 30px;min-height:0;display:flex;flex-direction:column;gap:20px;">
         
         <!-- 로딩 표시 -->
-        <div id="rc-loading" style="display:flex;align-items:center;justify-content:center;height:450px;color:var(--text-muted);font-size:var(--font-md);gap:10px;">
+        <div id="rc-loading" style="display:flex;align-items:center;justify-content:center;height:450px;color:var(--text-muted);font-size:var(--font-lg);gap:10px;font-weight:600;">
           ⏳ 운임 이력 데이터 분석 중...
         </div>
 
@@ -125,16 +125,16 @@ export async function openRouteChartModal(route, allForwarders) {
         <div id="rc-chart-view" style="display:none;position:relative;">
           
           <!-- 차트 상단 레이어 안내 배너 -->
-          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px;background:var(--bg-surface);border:1px solid var(--border-color);padding:10px 18px;border-radius:12px;font-size:12px;margin-bottom:14px;">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px;background:var(--bg-surface);border:1px solid var(--border-color);padding:12px 20px;border-radius:12px;font-size:13px;margin-bottom:14px;">
             <div style="display:flex;align-items:center;gap:8px;">
-              <span style="width:18px;height:5px;background:#10b981;border-radius:3px;display:inline-block;box-shadow:0 0 10px rgba(16,185,129,0.7);"></span>
-              <strong style="color:#10b981;font-size:13px;">★ 자사 최저 낙찰가 (Bold Emerald)</strong>
+              <span style="width:20px;height:5px;background:#10b981;border-radius:3px;display:inline-block;box-shadow:0 0 10px rgba(16,185,129,0.7);"></span>
+              <strong style="color:#10b981;font-size:14px;">★ 자사 최저 낙찰가 (Bold Emerald)</strong>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
-              <span style="width:18px;height:10px;background:rgba(148,163,184,0.25);border-radius:3px;display:inline-block;border:1px dashed rgba(148,163,184,0.6);"></span>
-              <span style="color:var(--text-secondary);font-weight:600;">포워더 견적 스펙트럼 (Min-Max 밴드)</span>
+              <span style="width:20px;height:12px;background:rgba(148,163,184,0.25);border-radius:3px;display:inline-block;border:1px dashed rgba(148,163,184,0.6);"></span>
+              <span style="color:var(--text-secondary);font-weight:700;font-size:13px;">포워더 견적 스펙트럼 (Min-Max 밴드)</span>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;color:var(--text-muted);margin-left:auto;font-size:11px;">
+            <div style="display:flex;align-items:center;gap:6px;color:var(--text-muted);margin-left:auto;font-size:12.5px;">
               <span>💡 포워더 이름에 마우스를 올리면 해당 선만 강조되며, 선에 마우스를 올리면 상세 견적 격차(Spread)가 표시됩니다.</span>
             </div>
           </div>
@@ -146,7 +146,7 @@ export async function openRouteChartModal(route, allForwarders) {
         </div>
 
         <!-- 2. 핵심 KPI 요약 카드 4종 -->
-        <div id="rc-stats" style="display:none;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;"></div>
+        <div id="rc-stats" style="display:none;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;"></div>
 
         <!-- 3. 원장 데이터 테이블 뷰 -->
         <div id="rc-table-view" style="display:none;">
@@ -223,7 +223,7 @@ export async function openRouteChartModal(route, allForwarders) {
     if (!chipsContainer) return;
 
     if (finalForwarders.length === 0) {
-      chipsContainer.innerHTML = '<span style="color:var(--text-muted);font-size:var(--font-xs);">등록된 포워더가 없습니다.</span>';
+      chipsContainer.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">등록된 포워더가 없습니다.</span>';
       return;
     }
 
@@ -234,14 +234,14 @@ export async function openRouteChartModal(route, allForwarders) {
 
       return `
         <button class="rc-chip" data-fid="${f.id}" data-idx="${i}" style="
-          padding: 6px 14px;
-          border-radius: 20px;
+          padding: 7px 16px;
+          border-radius: 24px;
           cursor: pointer;
-          font-size: 12px;
-          font-weight: 700;
+          font-size: 13.5px;
+          font-weight: 800;
           transition: all 0.2s ease;
           border: 1.5px solid ${isVisible ? c : 'var(--border-color)'};
-          background: ${isVisible ? (isHovered ? c + '45' : c + '20') : 'transparent'};
+          background: ${isVisible ? (isHovered ? c + '45' : c + '22') : 'transparent'};
           color: ${isVisible ? 'var(--text-primary)' : 'var(--text-muted)'};
           opacity: ${isVisible ? '1' : '0.45'};
           transform: ${isHovered ? 'scale(1.05)' : 'scale(1)'};
@@ -315,8 +315,8 @@ export async function openRouteChartModal(route, allForwarders) {
     const minMaxArr = calcMinMax(periods, rateKey);
 
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-    const gridC = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
-    const lblC = isDark ? '#94a3b8' : '#4a5e72';
+    const gridC = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)';
+    const lblC = isDark ? '#94a3b8' : '#334155';
 
     // 포워더별 데이터셋
     const fwDatasets = finalForwarders.map((f, i) => {
@@ -324,13 +324,13 @@ export async function openRouteChartModal(route, allForwarders) {
       const isHovered = hoveredFid === f.id;
       const hasHoverTarget = hoveredFid !== null;
 
-      let borderWidth = 2;
-      let pointRadius = 3.5;
+      let borderWidth = 2.2;
+      let pointRadius = 4;
 
       if (hasHoverTarget) {
         if (isHovered) {
-          borderWidth = 4;
-          pointRadius = 6.5;
+          borderWidth = 4.5;
+          pointRadius = 7;
         } else {
           borderWidth = 1.2;
           pointRadius = 1;
@@ -344,11 +344,11 @@ export async function openRouteChartModal(route, allForwarders) {
         borderColor: color,
         backgroundColor: color + '15',
         borderWidth: borderWidth,
-        pointRadius: isHovered ? 6.5 : pointRadius,
-        pointHoverRadius: 8,
+        pointRadius: isHovered ? 7 : pointRadius,
+        pointHoverRadius: 9,
         pointBackgroundColor: color,
         pointBorderColor: '#fff',
-        pointBorderWidth: 1.5,
+        pointBorderWidth: 2,
         tension: 0.3,
         hidden: !activeFids.has(f.id),
         spanGaps: false,
@@ -385,12 +385,12 @@ export async function openRouteChartModal(route, allForwarders) {
       data: minMaxArr.map(d => d.min),
       borderColor: '#10b981',
       backgroundColor: '#10b98125',
-      borderWidth: 4.5,
-      pointRadius: 5.5,
-      pointHoverRadius: 10,
+      borderWidth: 5,
+      pointRadius: 6,
+      pointHoverRadius: 11,
       pointBackgroundColor: '#10b981',
       pointBorderColor: '#fff',
-      pointBorderWidth: 2,
+      pointBorderWidth: 2.5,
       tension: 0.3,
       fill: false,
     };
@@ -420,11 +420,13 @@ export async function openRouteChartModal(route, allForwarders) {
             tooltip: {
               backgroundColor: isDark ? '#0f172a' : '#ffffff',
               borderColor: isDark ? '#334155' : '#cbd5e1',
-              borderWidth: 1,
+              borderWidth: 1.5,
               titleColor: isDark ? '#f8fafc' : '#0f172a',
-              bodyColor: isDark ? '#94a3b8' : '#334155',
-              padding: 14,
-              cornerRadius: 10,
+              titleFont: { size: 14, weight: '800' },
+              bodyColor: isDark ? '#cbd5e1' : '#334155',
+              bodyFont: { size: 13, weight: '600' },
+              padding: 16,
+              cornerRadius: 12,
               callbacks: {
                 title: items => `📅 ${items[0].label}월 운임 동향 (${currentFt.toUpperCase()} 기준)`,
                 label: item => {
@@ -452,13 +454,13 @@ export async function openRouteChartModal(route, allForwarders) {
           scales: {
             x: {
               grid: { color: gridC },
-              ticks: { color: lblC, font: { size: 12, weight: '600' } }
+              ticks: { color: lblC, font: { size: 13, weight: '700' } }
             },
             y: {
               grid: { color: gridC },
               ticks: {
                 color: lblC,
-                font: { size: 12 },
+                font: { size: 13, weight: '700' },
                 callback: v => '$' + Number(v).toLocaleString()
               }
             }
@@ -518,51 +520,51 @@ export async function openRouteChartModal(route, allForwarders) {
 
     statsEl.style.display = 'grid';
     statsEl.innerHTML = `
-      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:3px solid #10b981;border-radius:14px;padding:16px 20px;box-shadow:0 4px 14px rgba(0,0,0,0.05);">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:700;">
+      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:4px solid #10b981;border-radius:16px;padding:18px 22px;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
+        <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:6px;font-weight:800;">
           최근 최저 낙찰가 (${lastPeriod.label}월)
         </div>
-        <div style="font-size:1.75rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-family:monospace;">
+        <div style="font-size:2rem;font-weight:900;color:#10b981;letter-spacing:-0.03em;font-family:monospace;">
           $${lastMM.min.toLocaleString()}
         </div>
-        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
-          수주: <strong style="color:var(--text-primary);">${minFw ? minFw.name : '-'}</strong>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600;">
+          수주: <strong style="color:var(--text-primary);font-size:14px;">${minFw ? minFw.name : '-'}</strong>
         </div>
       </div>
 
-      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:3px solid var(--danger);border-radius:14px;padding:16px 20px;box-shadow:0 4px 14px rgba(0,0,0,0.05);">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:700;">
+      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:4px solid var(--danger);border-radius:16px;padding:18px 22px;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
+        <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:6px;font-weight:800;">
           최근 최고 제출가 (${lastPeriod.label}월)
         </div>
-        <div style="font-size:1.75rem;font-weight:900;color:var(--danger);letter-spacing:-0.03em;font-family:monospace;">
+        <div style="font-size:2rem;font-weight:900;color:var(--danger);letter-spacing:-0.03em;font-family:monospace;">
           $${lastMM.max.toLocaleString()}
         </div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
-          최저가 대비: +$${(lastMM.max - lastMM.min).toLocaleString()}
+        <div style="font-size:13px;color:var(--text-muted);margin-top:5px;font-weight:600;">
+          최저가 대비: <strong style="color:var(--danger);">+$${(lastMM.max - lastMM.min).toLocaleString()}</strong>
         </div>
       </div>
 
-      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:3px solid var(--warning);border-radius:14px;padding:16px 20px;box-shadow:0 4px 14px rgba(0,0,0,0.05);">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:700;">
+      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:4px solid var(--warning);border-radius:16px;padding:18px 22px;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
+        <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:6px;font-weight:800;">
           최근 견적 격차 (Spread)
         </div>
-        <div style="font-size:1.75rem;font-weight:900;color:var(--warning);letter-spacing:-0.03em;font-family:monospace;">
+        <div style="font-size:2rem;font-weight:900;color:var(--warning);letter-spacing:-0.03em;font-family:monospace;">
           $${(lastMM.max - lastMM.min).toLocaleString()}
         </div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
-          전체 평균 스프레드: $${avgSpread.toLocaleString()}
+        <div style="font-size:13px;color:var(--text-muted);margin-top:5px;font-weight:600;">
+          전체 평균 스프레드: <strong>$${avgSpread.toLocaleString()}</strong>
         </div>
       </div>
 
-      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:3px solid var(--accent);border-radius:14px;padding:16px 20px;box-shadow:0 4px 14px rgba(0,0,0,0.05);">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:700;">
+      <div style="background:var(--bg-surface);border:1px solid var(--border-color);border-top:4px solid var(--accent);border-radius:16px;padding:18px 22px;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
+        <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:6px;font-weight:800;">
           최다 최저가 제시 포워더
         </div>
-        <div style="font-size:1.45rem;font-weight:900;color:var(--accent);letter-spacing:-0.02em;margin-top:2px;">
+        <div style="font-size:1.65rem;font-weight:900;color:var(--accent);letter-spacing:-0.02em;margin-top:2px;">
           ${topWinnerObj ? topWinnerObj.name : '-'}
         </div>
-        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
-          총 ${periods.length}회차 중 <strong style="color:var(--accent);">${topWinnerEntry ? topWinnerEntry[1] : 0}회</strong> 최저 견적 수주
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:5px;font-weight:600;">
+          총 ${periods.length}회차 중 <strong style="color:var(--accent);font-size:14px;">${topWinnerEntry ? topWinnerEntry[1] : 0}회</strong> 최저 견적 수주
         </div>
       </div>
     `;
@@ -581,20 +583,20 @@ export async function openRouteChartModal(route, allForwarders) {
     tv.style.display = 'block';
 
     if (periods.length === 0) {
-      document.getElementById('rc-table-content').innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:48px;">입찰 운임 데이터가 없습니다.</p>';
+      document.getElementById('rc-table-content').innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:48px;font-size:15px;">입찰 운임 데이터가 없습니다.</p>';
       return;
     }
 
     let h = `
       <div style="overflow-x:auto;border:1px solid var(--border-color);border-radius:14px;">
-        <table class="data-table" style="width:100%;border-collapse:collapse;font-size:var(--font-sm);">
+        <table class="data-table" style="width:100%;border-collapse:collapse;font-size:14px;">
           <thead>
             <tr style="background:var(--bg-surface);">
-              <th style="white-space:nowrap;padding:14px 16px;border-bottom:2px solid var(--border-color);">입찰 회차</th>
-              ${vFws.map((f, i) => `<th style="color:${COLORS[i % COLORS.length]};white-space:nowrap;padding:14px 16px;border-bottom:2px solid var(--border-color);">${f.name}</th>`).join('')}
-              <th style="color:#10b981;white-space:nowrap;padding:14px 16px;border-bottom:2px solid var(--border-color);">최저가</th>
-              <th style="color:var(--danger);white-space:nowrap;padding:14px 16px;border-bottom:2px solid var(--border-color);">최고가</th>
-              <th style="color:var(--warning);white-space:nowrap;padding:14px 16px;border-bottom:2px solid var(--border-color);">Spread (격차)</th>
+              <th style="white-space:nowrap;padding:14px 18px;border-bottom:2px solid var(--border-color);font-size:14px;font-weight:800;">입찰 회차</th>
+              ${vFws.map((f, i) => `<th style="color:${COLORS[i % COLORS.length]};white-space:nowrap;padding:14px 18px;border-bottom:2px solid var(--border-color);font-size:14px;font-weight:800;">${f.name}</th>`).join('')}
+              <th style="color:#10b981;white-space:nowrap;padding:14px 18px;border-bottom:2px solid var(--border-color);font-size:14px;font-weight:800;">최저가</th>
+              <th style="color:var(--danger);white-space:nowrap;padding:14px 18px;border-bottom:2px solid var(--border-color);font-size:14px;font-weight:800;">최고가</th>
+              <th style="color:var(--warning);white-space:nowrap;padding:14px 18px;border-bottom:2px solid var(--border-color);font-size:14px;font-weight:800;">Spread (격차)</th>
             </tr>
           </thead>
           <tbody>
@@ -609,24 +611,24 @@ export async function openRouteChartModal(route, allForwarders) {
 
       h += `
         <tr style="border-bottom:1px solid var(--border-color);">
-          <td style="font-weight:800;white-space:nowrap;padding:12px 16px;background:var(--bg-surface);">${p.label}</td>
+          <td style="font-weight:800;white-space:nowrap;padding:14px 18px;background:var(--bg-surface);font-size:14px;">${p.label}</td>
           ${vals.map(v => {
             const isMin = v !== null && v === minV && valid.length > 1;
             const isMax = v !== null && v === maxV && valid.length > 1;
             const style = isMin
-              ? 'color:#10b981;font-weight:800;background:rgba(16,185,129,0.12);'
-              : (isMax ? 'color:var(--danger);' : '');
-            return `<td style="padding:12px 16px;font-family:monospace;${style}">
+              ? 'color:#10b981;font-weight:900;background:rgba(16,185,129,0.12);font-size:14.5px;'
+              : (isMax ? 'color:var(--danger);font-size:14px;' : 'font-size:14px;');
+            return `<td style="padding:14px 18px;font-family:monospace;${style}">
               ${v !== null ? '$' + v.toLocaleString() : '<span style="color:var(--text-muted)">-</span>'}
             </td>`;
           }).join('')}
-          <td style="color:#10b981;font-weight:800;padding:12px 16px;font-family:monospace;background:rgba(16,185,129,0.08);">
+          <td style="color:#10b981;font-weight:900;padding:14px 18px;font-family:monospace;background:rgba(16,185,129,0.08);font-size:14.5px;">
             ${minV !== null ? '$' + minV.toLocaleString() : '-'}
           </td>
-          <td style="color:var(--danger);padding:12px 16px;font-family:monospace;">
+          <td style="color:var(--danger);padding:14px 18px;font-family:monospace;font-size:14px;font-weight:700;">
             ${maxV !== null ? '$' + maxV.toLocaleString() : '-'}
           </td>
-          <td style="color:var(--warning);font-weight:700;padding:12px 16px;font-family:monospace;">
+          <td style="color:var(--warning);font-weight:800;padding:14px 18px;font-family:monospace;font-size:14px;">
             ${spread !== null ? '$' + spread.toLocaleString() : '-'}
           </td>
         </tr>
