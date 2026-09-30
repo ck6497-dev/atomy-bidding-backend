@@ -52,7 +52,7 @@ export function renderDataGrid(container, options) {
         const val = row[col.key] !== undefined && row[col.key] !== null ? row[col.key] : '';
         const placeholder = col.placeholder ? `placeholder="${col.placeholder}"` : '';
         const inputType = type === 'number' ? `type="number" step="1" min="0"` : `type="text"`;
-        html += `<input class="grid-cell-input ${alignClass}" data-row="${rowIndex}" data-col="${colIndex}" data-key="${col.key}" ${inputType} ${placeholder} value="${val}" />`;
+        html += `<input class="grid-cell-input ${alignClass}" data-row="${rowIndex}" data-col="${colIndex}" data-key="${col.key}" ${inputType} ${placeholder} value="${val}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" />`;
       }
       html += `</td>`;
     });
@@ -90,12 +90,31 @@ export function renderDataGrid(container, options) {
     }, { passive: false });
 
     // 포커스 시 입력값 전체 선택 (엑셀식 바로 타이핑 지원)
+    // [안전장치]: 외부 보안 프로그램/자동완성과의 무한 핑퐁 루프 방지
+    let isMouseDown = false;
+
+    input.addEventListener('mousedown', () => {
+      if (document.activeElement !== input) {
+        isMouseDown = true;
+      }
+    });
+
     input.addEventListener('focus', () => {
-      setTimeout(() => {
-        if (typeof input.select === 'function') {
+      if (!isMouseDown) {
+        if (document.activeElement === input && typeof input.select === 'function') {
           input.select();
         }
-      }, 10);
+      }
+    });
+
+    input.addEventListener('mouseup', (e) => {
+      if (isMouseDown) {
+        isMouseDown = false;
+        if (document.activeElement === input && typeof input.select === 'function') {
+          input.select();
+        }
+        e.preventDefault();
+      }
     });
 
     input.addEventListener('keydown', (e) => {
@@ -126,9 +145,15 @@ export function renderDataGrid(container, options) {
 
       // ─── 3. 왼쪽 화살표 (ArrowLeft) -> 이전 열/셀로 이동 ───
       if (e.key === 'ArrowLeft') {
-        // 커서 위치가 맨 앞이거나 전체 선택 상태일 때 이전 셀로 이동
-        const isAtStart = input.selectionStart === 0 && input.selectionEnd === 0;
-        const isAllSelected = input.selectionStart === 0 && input.selectionEnd === input.value.length;
+        let isAtStart = true;
+        let isAllSelected = false;
+        try {
+          if (input.type !== 'number') {
+            isAtStart = input.selectionStart === 0 && input.selectionEnd === 0;
+            isAllSelected = input.selectionStart === 0 && input.selectionEnd === input.value.length;
+          }
+        } catch (err) {}
+
         if (isAtStart || isAllSelected || input.type === 'number') {
           e.preventDefault();
           input.blur();
@@ -149,9 +174,15 @@ export function renderDataGrid(container, options) {
 
       // ─── 4. 오른쪽 화살표 (ArrowRight) -> 다음 열/셀로 이동 ───
       if (e.key === 'ArrowRight') {
-        // 커서 위치가 맨 뒤이거나 전체 선택 상태일 때 다음 셀로 이동
-        const isAtEnd = input.selectionEnd === input.value.length;
-        const isAllSelected = input.selectionStart === 0 && input.selectionEnd === input.value.length;
+        let isAtEnd = true;
+        let isAllSelected = false;
+        try {
+          if (input.type !== 'number') {
+            isAtEnd = input.selectionEnd === input.value.length;
+            isAllSelected = input.selectionStart === 0 && input.selectionEnd === input.value.length;
+          }
+        } catch (err) {}
+
         if (isAtEnd || isAllSelected || input.type === 'number') {
           e.preventDefault();
           input.blur();
