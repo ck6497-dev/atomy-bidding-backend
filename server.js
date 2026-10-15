@@ -370,7 +370,7 @@ app.post('/api/set-password', async (req, res) => {
 
 // ─── ADMIN API (슈퍼 관리자용) ───────────────────────────────────────────────
 // 관리자 계정 목록 조회
-app.get('/api/admins', authenticateToken, requireAdmin, async (req, res) => {
+app.get('/api/admins', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
     const result = await pool.query("SELECT id, email, role, is_first_login, created_at FROM users WHERE role = 'admin' OR role = 'super_admin'");
     res.json(result.rows);
@@ -380,7 +380,7 @@ app.get('/api/admins', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // 관리자 계정 추가
-app.post('/api/admins', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/admins', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: '이메일을 입력해주세요.' });
 
@@ -401,7 +401,7 @@ app.post('/api/admins', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // 관리자 계정 삭제
-app.delete('/api/admins/:id', authenticateToken, requireAdmin, async (req, res) => {
+app.delete('/api/admins/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
   const targetId = Number(id);
 

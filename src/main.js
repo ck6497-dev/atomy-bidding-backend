@@ -1,4 +1,4 @@
-import { getSession, isAdmin, isForwarder, clearSession } from './store.js';
+import { getSession, isAdmin, isSuperAdmin, isForwarder, clearSession } from './store.js';
 import { registerRoute, navigate, initRouter } from './router.js';
 import { renderHeader, initTheme } from './components/Header.js';
 import { renderSidebar } from './components/Sidebar.js';
@@ -49,6 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return navigate('#/rate-entry');
       }
 
+      if (requiredRole === 'super_admin' && !isSuperAdmin()) {
+        return navigate(isAdmin() ? '#/dashboard' : '#/rate-entry');
+      }
+
       if (requiredRole === 'forwarder') {
         // 메일 링크를 통해 특정 이메일로 접속 요청이 들어온 경우
         if (targetEmail && session && session.email !== targetEmail) {
@@ -82,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
   registerRoute('#/forwarders', withLayout(renderForwardersPage, 'admin'));
   registerRoute('#/bidding', withLayout(renderBiddingPage, 'admin'));
   registerRoute('#/rate-entry', withLayout(renderRateEntryPage, 'forwarder'));
-  registerRoute('#/admins', withLayout(renderAdminsPage, 'admin'));
+  registerRoute('#/admins', withLayout(renderAdminsPage, 'super_admin'));
 
   // Initial navigation
   const session = getSession();
