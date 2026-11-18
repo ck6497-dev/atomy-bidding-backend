@@ -433,7 +433,7 @@ app.get('/health', (req, res) => {
 
 // ─── 이메일 발송 엔드포인트 (EmailJS 방식) ────────────────────────────────────
 app.post('/api/send-email', authenticateToken, async (req, res) => {
-  const { to, subject, html } = req.body;
+  const { to, subject, html, skipCc } = req.body;
   if (!to || !subject || !html) return res.status(400).json({ error: '필수 필드가 누락되었습니다.' });
 
   try {
@@ -441,13 +441,17 @@ app.post('/api/send-email', authenticateToken, async (req, res) => {
     const senderEmail = req.user.email;
 
     // CC: 모든 관리자(admin, super_admin) 이메일 목록 (수신자 본인 제외)
-    const adminResult = await pool.query(
-      "SELECT email FROM users WHERE role IN ('admin', 'super_admin')"
-    );
-    const ccEmails = adminResult.rows
-      .map(r => r.email)
-      .filter(e => e !== to)
-      .join(', ');
+    // skipCc=true 이면 CC 없이 발송 (포워더별 개별 발송 시 팀원에게 메일이 중복 쌓이는 것 방지)
+    let ccEmails = '';
+    if (!skipCc) {
+      const adminResult = await pool.query(
+        "SELECT email FROM users WHERE role IN ('admin', 'super_admin')"
+      );
+      ccEmails = adminResult.rows
+        .map(r => r.email)
+        .filter(e => e !== to)
+        .join(', ');
+    }
 
     const response = await emailjs.send(
       process.env.EMAILJS_SERVICE_ID,

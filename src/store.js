@@ -259,10 +259,10 @@ export async function saveRates(rates) {
   });
 }
 
-export async function sendEmailApi(to, subject, html) {
+export async function sendEmailApi(to, subject, html, skipCc = false) {
   return apiFetch('/send-email', {
     method: 'POST',
-    body: JSON.stringify({ to, subject, html })
+    body: JSON.stringify({ to, subject, html, skipCc })
   });
 }
 

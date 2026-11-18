@@ -1,4 +1,4 @@
-import { getBiddings, addBidding, updateBidding, getActiveBidding, getForwarders, getRoutes, getAllRates, revokeSubmission, reopenBidding, isForwarderSubmitted, getToken, sendEmailApi, isSuperAdmin } from '../store.js';
+import { getBiddings, addBidding, updateBidding, getActiveBidding, getForwarders, getRoutes, getAllRates, revokeSubmission, reopenBidding, isForwarderSubmitted, getToken, getSession, sendEmailApi, isSuperAdmin } from '../store.js';
 import { showModal, closeModal } from '../components/Modal.js';
 import { showToast } from '../components/Toast.js';
 import { formatDate } from '../utils/format.js';
@@ -373,13 +373,40 @@ export async function renderBiddingPage(container) {
                   <p>아래 링크를 통해 운임을 입력해 주시기 바랍니다.</p>
                   <a href="${targetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 10px;">운임 입력하기</a>
                 </div>
-              `
+              `,
+              true // 관리자 CC 제외 (팀원에게는 마지막에 요약 1통만 발송)
             );
             successCount++;
           } catch (emailError) {
             console.error(`메일 발송 실패 (${t.email}):`, emailError);
             failedTargets.push(t.email);
           }
+        }
+
+        // 팀원(관리자)용 요약 메일 1통 (본인에게 보내고 나머지 관리자는 CC)
+        try {
+          const myEmail = getSession()?.email;
+          if (myEmail && successCount > 0) {
+            const okList = emailTargets.filter(t => !failedTargets.includes(t.email));
+            const rows = okList.map(t => `<li>${t.name} (${t.email})</li>`).join('');
+            const failRows = failedTargets.length
+              ? `<p style="color:#c00;"><strong>발송 실패:</strong> ${failedTargets.join(', ')}</p>` : '';
+            await sendEmailApi(
+              myEmail,
+              `[Atomy] 입찰 오픈 메일 발송 완료: ${biddingData.title}`,
+              `
+                <div style="font-family: sans-serif; padding: 20px;">
+                  <h2>입찰 오픈 메일 발송 결과</h2>
+                  <p>입찰: <strong>${biddingData.title}</strong> (마감 ${biddingData.deadline})</p>
+                  <p>아래 포워더 ${okList.length}곳에 안내 메일을 발송했습니다.</p>
+                  <ul>${rows}</ul>
+                  ${failRows}
+                </div>
+              `
+            );
+          }
+        } catch (summaryError) {
+          console.error('관리자 요약 메일 발송 실패:', summaryError);
         }
 
         if (failedTargets.length === 0) {
